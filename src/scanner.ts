@@ -13,6 +13,7 @@ import {
   isStversionsPath,
   isSyncConflictName,
 } from "./vault-boundary.js";
+import { applyGraphToObjects, type GraphEvaluation } from "./graph.js";
 
 export type ScannedObject = {
   relPath: string;
@@ -35,6 +36,7 @@ export type ScanReport = {
     issues: string[];
   };
   counts: Record<string, number>;
+  graph?: GraphEvaluation;
 };
 
 function walkFiles(root: string, base = root, out: string[] = []): string[] {
@@ -295,6 +297,8 @@ export function scanMemoryRoot(
     }
   }
 
+  const graph = applyGraphToObjects(objects);
+
   const counts: Record<string, number> = {};
   for (const o of objects) {
     const k = `${o.kind}:${o.trust}`;
@@ -315,6 +319,7 @@ export function scanMemoryRoot(
       issues: standingIssues,
     },
     counts,
+    graph,
   };
 }
 
