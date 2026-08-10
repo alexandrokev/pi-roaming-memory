@@ -279,23 +279,45 @@ async function runNewSession(ctx: any, kickoff: string, mode: string) {
     }
     return;
   }
-  // owner mode
+  // owner mode — all post-replacement work MUST use withSession ctx
+  // (old command ctx is stale after newSession; see pi extensions.md)
+  const parentSession =
+    typeof ctx.sessionManager?.getSessionFile === "function"
+      ? ctx.sessionManager.getSessionFile()
+      : undefined;
   const result = await ctx.newSession({
-    parentSession: undefined,
+    parentSession,
+    withSession: async (newCtx: any) => {
+      try {
+        if (typeof newCtx.sendUserMessage === "function") {
+          await newCtx.sendUserMessage(kickoff);
+        } else if (typeof newCtx.ui?.notify === "function") {
+          newCtx.ui.notify(kickoff.slice(0, 200), "info");
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        try {
+          if (typeof newCtx.ui?.notify === "function") {
+            newCtx.ui.notify(`Kickoff failed: ${msg}`, "error");
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    },
   });
+  // Do not touch old ctx after newSession (stale). cancelled is the only
+  // pre-replacement signal we can still read from the return value.
   if (result?.cancelled) {
-    if (ctx.hasUI) ctx.ui.notify("New session cancelled; stayed in current session", "info");
-    return;
-  }
-  // Best-effort: send kickoff into new session if API allows
-  if (typeof ctx.sendUserMessage === "function") {
-    // may still be old session — prefer notify
-  }
-  if (ctx.hasUI) {
-    ctx.ui.notify(
-      `New session started. Kickoff: ${kickoff.slice(0, 120)}…`,
-      "info",
-    );
+    // User/extension cancelled; still on old session — old ctx may be usable,
+    // but avoid relying on it beyond best-effort notify.
+    try {
+      if (ctx.hasUI) {
+        ctx.ui.notify("New session cancelled; stayed in current session", "info");
+      }
+    } catch {
+      /* stale ctx — ignore */
+    }
   }
 }
 

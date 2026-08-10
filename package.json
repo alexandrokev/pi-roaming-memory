@@ -1,6 +1,6 @@
 {
   "name": "pi-roaming-memory",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": false,
   "description": "Cross-device durable memory for Pi via synchronized Obsidian Markdown (design + early read-only implementation).",
   "type": "module",

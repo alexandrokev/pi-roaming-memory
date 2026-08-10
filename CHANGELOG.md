@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 — 2026-08-10
+
+### Fixes
+
+- `/lanjut` owner: use `ctx.newSession({ withSession })` so kickoff runs on replacement session; never touch stale command ctx after session replace (Pi 0.82+ footgun)
+
 ## 0.6.2 — 2026-08-10
 
 ### Handoff UX parity (owner)
