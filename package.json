@@ -1,0 +1,27 @@
+{
+  "name": "pi-roaming-memory",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cross-device durable memory for Pi via synchronized Obsidian Markdown (design + early read-only implementation).",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "memory",
+    "obsidian",
+    "syncthing"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --import ./test/ts-js-resolve-register.mjs --test test/*.test.mjs",
+    "check:fixtures": "node fixtures/scripts/compute-integrity.mjs fixtures/synthetic-vault/AI\\ Memory/memories/2026/08/mem_11111111-1111-4111-8111-111111111111.md"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
