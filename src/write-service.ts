@@ -1,5 +1,5 @@
 import { publishCanonical } from "./atomic-publisher.js";
-import { computeIntegritySha256 } from "./integrity.js";
+import { computeIntegritySha256, normalizeCanonicalBody, verifyIntegrity } from "./integrity.js";
 import { parseCanonicalMarkdown } from "./canonical-parser.js";
 import { validateManagedMeta } from "./schema-validator.js";
 import { assertNoSensitive, scanSensitive } from "./sensitive.js";
@@ -63,6 +63,7 @@ export function proposeMemory(
   const deviceId = ensureDeviceId(expand(config.deviceIdFile));
   const id = typedId("mem");
   const created_at = new Date().toISOString();
+  const b = normalizeCanonicalBody(input.body);
   const meta: Record<string, unknown> = {
     schema: "pi-roaming-memory/memory@1",
     id,
@@ -79,7 +80,7 @@ export function proposeMemory(
     approved_by: "user",
     approved_at: created_at,
   };
-  meta.integrity_sha256 = computeIntegritySha256(meta, ensureBody(input.body));
+  meta.integrity_sha256 = computeIntegritySha256(meta, b);
   const v = validateManagedMeta(meta);
   if (!v.ok) {
     return {
@@ -87,7 +88,7 @@ export function proposeMemory(
       error: `schema:${v.issues.map((i) => i.message).join("; ")}`,
     };
   }
-  const bytesUtf8 = serializeNote(meta, ensureBody(input.body));
+  const bytesUtf8 = serializeNote(meta, b);
   // path must never target STANDING.md
   const relPath = memoryRelPath(id, created_at);
   if (relPath === "STANDING.md" || relPath.endsWith("/STANDING.md")) {
@@ -113,7 +114,9 @@ export function proposeTombstone(
   const deviceId = ensureDeviceId(expand(config.deviceIdFile));
   const id = typedId("tmb");
   const created_at = new Date().toISOString();
-  const body = `Tombstone for ${targetId}: ${reason_code}\n`;
+  const body = normalizeCanonicalBody(
+    `Tombstone for ${targetId}: ${reason_code}\n`,
+  );
   const meta: Record<string, unknown> = {
     schema: "pi-roaming-memory/tombstone@1",
     id,
@@ -160,7 +163,7 @@ export function proposeResolution(
   const deviceId = ensureDeviceId(expand(config.deviceIdFile));
   const id = typedId("res");
   const created_at = new Date().toISOString();
-  const body = ensureBody(rationale);
+  const body = normalizeCanonicalBody(rationale);
   const meta: Record<string, unknown> = {
     schema: "pi-roaming-memory/resolution@1",
     id,
@@ -217,7 +220,7 @@ export function proposeCheckpointNote(
     id,
     created_at,
   };
-  const b = ensureBody(body);
+  const b = normalizeCanonicalBody(body);
   meta.integrity_sha256 = computeIntegritySha256(meta, b);
   const v = validateManagedMeta(meta);
   if (!v.ok) {
@@ -290,6 +293,10 @@ export function commitProposal(
       error: `schema:${v.issues.map((i) => i.message).join("; ")}`,
     };
   }
+  const integ = verifyIntegrity(parsed.meta, parsed.body);
+  if (!integ.ok) {
+    return { ok: false, error: "integrity_mismatch" };
+  }
 
   const root = memoryRootAbs(config);
   const pub = publishCanonical({
@@ -302,9 +309,4 @@ export function commitProposal(
   }
   const id = typeof proposal.meta.id === "string" ? proposal.meta.id : "unknown";
   return { ok: true, id, relPath: pub.relPath };
-}
-
-function ensureBody(body: string): string {
-  const t = body.endsWith("\n") ? body : body + "\n";
-  return t.startsWith("\n") ? t.slice(1) : t;
 }

@@ -19,6 +19,17 @@ export function jcs(value: unknown): string {
   throw new Error(`unsupported jcs type: ${typeof value}`);
 }
 
+/**
+ * Canonical body form for hashing + on-disk serialization.
+ * On-disk/parser body = single blank line after closing `---`,
+ * i.e. exactly one leading "\n", exactly one trailing "\n".
+ * Idempotent: normalize(normalize(x)) === normalize(x).
+ */
+export function normalizeCanonicalBody(body: string): string {
+  const t = body.replace(/^\n+/, "").replace(/\n+$/, "") + "\n";
+  return "\n" + t;
+}
+
 export function computeIntegritySha256(
   meta: Record<string, unknown>,
   body: string,

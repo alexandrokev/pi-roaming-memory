@@ -1,4 +1,5 @@
 import path from "node:path";
+import { normalizeCanonicalBody } from "./integrity.js";
 
 /** YYYY/MM from RFC3339 or Date. */
 export function yearMonth(isoOrDate: string | Date = new Date()): {
@@ -45,16 +46,13 @@ export function serializeNote(
   const seen = new Set<string>();
   const lines: string[] = ["---"];
   for (const k of keys) {
-    if (seen.has(k) || !(k in meta)) continue;
+    if (seen.has(k) || !(k in meta) || meta[k] === undefined) continue;
     seen.add(k);
     lines.push(`${k}: ${formatYamlScalar(meta[k])}`);
   }
   lines.push("---");
-  const normalizedBody = body.startsWith("\n") ? body : `\n${body}`;
-  const withTrailing = normalizedBody.endsWith("\n")
-    ? normalizedBody
-    : normalizedBody + "\n";
-  return lines.join("\n") + "\n" + withTrailing;
+  const normalizedBody = normalizeCanonicalBody(body);
+  return lines.join("\n") + "\n" + normalizedBody;
 }
 
 function formatYamlScalar(v: unknown): string {
@@ -68,9 +66,28 @@ function formatYamlScalar(v: unknown): string {
   return formatBare(v);
 }
 
+// YAML 1.1/1.2 ambiguous or numeric-looking strings that would parse back
+// as null/bool/number (or Date) — always JSON-quote them to keep strings.
+const YAML_AMBIGUOUS_SCALAR =
+  /^(null|NULL|Null|~|true|True|TRUE|false|False|FALSE|yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF)$/;
+const YAML_NUMERIC_SCALAR =
+  /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$|^[+-]?0[xX][0-9a-fA-F]+$|^[+-]?0[oO][0-7]+$|^[+-]?0[bB][01]+$/;
+const YAML_SPECIAL_FLOAT =
+  /^[+-]?(\.inf|\.Inf|\.INF|\.nan|\.NaN|\.NAN)$/;
+const YAML_DATE_SCALAR =
+  /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
 function formatBare(v: unknown): string {
   if (typeof v !== "string") return String(v);
   if (v === "") return '""';
+  if (
+    YAML_AMBIGUOUS_SCALAR.test(v) ||
+    YAML_NUMERIC_SCALAR.test(v) ||
+    YAML_SPECIAL_FLOAT.test(v) ||
+    YAML_DATE_SCALAR.test(v)
+  ) {
+    return JSON.stringify(v);
+  }
   if (/[:#\[\]{},\n]/.test(v) || v.includes(" ")) return JSON.stringify(v);
   return v;
 }

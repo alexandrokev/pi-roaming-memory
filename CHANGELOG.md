@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 — 2026-08-10
+
+### Fixes
+
+- Canonical body normalization: hash and on-disk body share leading blank-line form (`normalizeCanonicalBody`)
+- `commitProposal` verifies integrity before publish (fail closed on mismatch)
+- YAML scalar quoting for ambiguous strings (`null`, bools, numeric-looking, dates) so serialize→parse preserves types
+- Tests: propose→commit→scan approved for memory/checkpoint/tombstone/resolution; adversarial scalar roundtrip; tamper rejected
+
 ## 0.6.0 — 2026-08-10
 
 ### Cutover (owner mode)
