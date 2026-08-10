@@ -1,0 +1,41 @@
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local runtime configuration and state
+.env
+.env.*
+!.env.example
+config.local.json
+.pi-roaming-memory/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+metrics.jsonl
+logs/
+proposals/
+device.json
+standing-approval.json
+
+# Private/canonical data must never enter public source
+AI Memory/
+.stversions/
+.sync-conflict-*
+# Synthetic conflict-name fixtures are allowed under fixtures/
+!fixtures/
+!fixtures/**/
+!fixtures/**/*.sync-conflict-*
+
+# Local agent/review harness output
+.pi-subagents/
+.pi/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
