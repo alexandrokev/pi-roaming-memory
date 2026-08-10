@@ -9,5 +9,6 @@
   "maxReadBytes": 131072,
   "enableStandingInstructions": true,
   "handoffMode": "shadow",
+  "_comment_handoffMode": "shadow keeps pi-auto-handoff; owner registers /handoff+/lanjut — remove legacy package first",
   "hermesFallback": true
 }

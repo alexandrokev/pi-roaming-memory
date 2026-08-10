@@ -1,68 +1,81 @@
 # Pi Roaming Memory
 
-Pi extension design + early implementation for durable, cross-device memory backed by synchronized Obsidian Markdown.
+Pi extension for durable, cross-device memory backed by synchronized Obsidian Markdown.
 
-## Status
+**Version:** 0.6.0  
+**Status:** Implemented Phases 1–6 (Mac). Windows peer + independent backup still residual.
 
-- Architecture: **accepted** (`docs/DESIGN.md`, ADR 0001–0008)
-- Phase 0 (contract + safety baseline): **in progress on Mac**
-- Phase 1 (read-only package): **started (skeleton only)**
-- Runtime writes / real `AI Memory/` vault: **not started**
+## Install
+
+```bash
+pi install git:github.com/alexandrokev/pi-roaming-memory
+```
+
+Create local config (required):
+
+```bash
+mkdir -p ~/.pi/agent/pi-roaming-memory
+cat > ~/.pi/agent/pi-roaming-memory/config.json <<'EOF'
+{
+  "schemaVersion": 1,
+  "vaultRoot": "/path/to/obsidian-vault",
+  "memoryRoot": "AI Memory",
+  "deviceIdFile": "~/.pi/agent/pi-roaming-memory/device.json",
+  "indexFile": "~/.pi/agent/pi-roaming-memory/index.sqlite",
+  "maxSearchResults": 8,
+  "maxSearchTokens": 4000,
+  "maxReadBytes": 131072,
+  "enableStandingInstructions": true,
+  "handoffMode": "shadow",
+  "hermesFallback": true
+}
+EOF
+```
+
+Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"` only after removing `pi-auto-handoff` from Pi packages.
+
+## Tools
+
+| Tool | Role |
+|---|---|
+| `shared_memory` | Read-only: `status`, `list`, `search`, `get`, `conflicts` |
+| `shared_memory_write` | Suggest-first: `propose_*`, `commit_proposal` (`confirmed: true`) |
+
+## Commands
+
+| Mode | Commands |
+|---|---|
+| `shadow` | `/roam-handoff`, `/roam-lanjut`, `/memory-*` |
+| `owner` | `/handoff`, `/lanjut`, plus roam aliases + `/memory-*` |
+
+`/memory-approve-standing` — approve STANDING.md hash on this device  
+`/memory-reindex` — rebuild local FTS  
+`/memory-status` — health summary
 
 ## Documents
 
 - [Domain language](./CONTEXT.md)
 - [System design](./docs/DESIGN.md)
-- [Architecture decisions](./docs/adr/)
-- [Phase 0 baseline](./docs/phase-0/)
-- [Fixtures](./fixtures/)
-- [Example config](./config/config.example.json)
+- [ADRs](./docs/adr/)
+- [Changelog](./CHANGELOG.md)
+- [Plan](./PLAN.md)
 
-## Layout
+## Safety
 
-```text
-pi-roaming-memory/
-├── CONTEXT.md
-├── README.md
-├── config/config.example.json
-├── docs/
-│   ├── DESIGN.md
-│   ├── adr/
-│   └── phase-0/
-├── fixtures/
-│   ├── synthetic-vault/
-│   ├── invalid/
-│   ├── casefold/
-│   └── scripts/
-└── src/                    # Phase 1+ package source
-```
+- Canonical state = Markdown under `<vault>/AI Memory`
+- Local SQLite is disposable projection (not synced)
+- No agent writes to `STANDING.md`
+- No last-write-wins; explicit conflicts
+- Independent backup still required before sole-source production (ADR 0007)
 
-## Approved local layout (this Mac only)
-
-Source checkout:
-
-```text
-/Users/intinyadev/Documents/kev/pi-roaming-memory
-```
-
-Canonical synchronized data:
-
-```text
-/Users/intinyadev/Documents/kev/si-ian/AI Memory
-```
-
-Paths document current device configuration. Implementation must not hardcode them; public examples use placeholders (`config/config.example.json`).
-
-## Safety boundary
-
-- Public source may hold design docs, code, schemas, and **synthetic** fixtures only.
-- Never commit real memory notes, handoffs, Syncthing credentials, device identifiers, secrets, or live vault content.
-- Do not create a real `AI Memory/` directory in the live vault until write-path tests pass and the operator explicitly requests it.
-- Independent backup still missing → sole-source production cutover remains blocked (ADR 0007).
-
-## Development (Phase 1+)
+## Develop
 
 ```bash
 npm test
-node fixtures/scripts/compute-integrity.mjs --write path/to/note.md
 ```
+
+Node ≥ 22 (uses `--experimental-strip-types` and `node:sqlite`).
+
+## License
+
+MIT
