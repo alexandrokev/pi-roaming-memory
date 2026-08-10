@@ -1,0 +1,12 @@
+# Cross-platform line endings: vault fixture files carry sha256 integrity
+# manifests computed over LF bytes. Windows clones must keep LF or every
+# integrity check fails.
+* text=auto
+
+# Canonical Markdown (fixtures, docs) must stay LF everywhere.
+*.md text eol=lf
+
+# Source + tests: LF.
+*.ts text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf

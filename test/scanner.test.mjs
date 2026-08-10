@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function load() {
   return import(path.join(root, "src/scanner.ts"));
