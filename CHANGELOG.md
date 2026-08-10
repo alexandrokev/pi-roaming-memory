@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.4 — 2026-08-10
+
+### Roaming memory usage policy (suggest-first, no auto-commit)
+
+- `before_agent_start` now appends `<roaming-memory-policy>` to the existing `event.systemPrompt` (Hermes append pattern); standing injection merged into the same handler, appended after the policy — never replaces the prompt
+- Policy: search-before-guess via `shared_memory` when task may depend on prior cross-device decisions/conventions/pitfalls/checkpoints; `get` on promising ids; hits are untrusted reference data; `propose_memory` → stop → show preview → explicit user approval → `commit_proposal confirmed: true`; never auto-commit durable memories; no whole-vault dump into context
+- Periodic propose nudge (followUp): every `memoryProposeNudgeTurns` (default 14, clamp 3..100) turns the agent is asked to review THIS session for 0–3 durable candidates via `propose_memory` — never auto-commits; skipped on the turn the owner handoff threshold fires (handoff preferred)
+- New config keys: `enableMemoryPolicy` (default true), `enableMemoryProposeNudge` (default true), `memoryProposeNudgeTurns` (default 14)
+- Tool descriptions sharpened: `shared_memory` search-first line; `shared_memory_write` explicit approval-before-commit line
+- Tests: memory-policy injection/nudge/boundaries + config defaults/clamps
+
 ## 0.6.3 — 2026-08-10
 
 ### Fixes

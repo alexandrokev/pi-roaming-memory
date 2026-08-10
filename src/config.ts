@@ -12,6 +12,9 @@ export type RoamingConfig = {
   maxSearchTokens: number;
   maxReadBytes: number;
   enableStandingInstructions: boolean;
+  enableMemoryPolicy: boolean;
+  enableMemoryProposeNudge: boolean;
+  memoryProposeNudgeTurns: number;
   handoffMode: "off" | "shadow" | "owner";
   hermesFallback: boolean;
 };
@@ -119,6 +122,17 @@ export function loadConfig(
         ? o.maxReadBytes
         : 131072,
     enableStandingInstructions: o.enableStandingInstructions !== false,
+    enableMemoryPolicy: o.enableMemoryPolicy !== false,
+    enableMemoryProposeNudge: o.enableMemoryProposeNudge !== false,
+    memoryProposeNudgeTurns: Math.min(
+      100,
+      Math.max(
+        3,
+        typeof o.memoryProposeNudgeTurns === "number"
+          ? o.memoryProposeNudgeTurns
+          : 14,
+      ),
+    ),
     handoffMode,
     hermesFallback: o.hermesFallback !== false,
   };

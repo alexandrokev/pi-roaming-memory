@@ -37,7 +37,7 @@ export function registerSharedMemoryWriteTool(
     name: "shared_memory_write",
     label: "Shared Memory Write",
     description:
-      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, commit_proposal, publish_checkpoint. commit_proposal requires confirmed=true after user approval. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
+      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, commit_proposal, publish_checkpoint. commit_proposal requires confirmed=true after user approval. After propose_*, show preview and wait for explicit user approval before commit_proposal confirmed=true. Never auto-commit durable memories. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
     parameters: {
       type: "object",
       properties: {

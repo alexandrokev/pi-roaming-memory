@@ -2,7 +2,7 @@
 
 Pi extension for durable, cross-device memory backed by synchronized Obsidian Markdown.
 
-**Version:** 0.6.2  
+**Version:** 0.6.4  
 **Status:** Implemented Phases 1–6 (Mac). Windows peer + independent backup still residual.
 
 ## Install
@@ -26,6 +26,9 @@ cat > ~/.pi/agent/pi-roaming-memory/config.json <<'EOF'
   "maxSearchTokens": 4000,
   "maxReadBytes": 131072,
   "enableStandingInstructions": true,
+  "enableMemoryPolicy": true,
+  "enableMemoryProposeNudge": true,
+  "memoryProposeNudgeTurns": 14,
   "handoffMode": "shadow",
   "hermesFallback": true
 }
@@ -40,6 +43,10 @@ Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"`
 |---|---|
 | `shared_memory` | Read-only: `status`, `list`, `search`, `get`, `conflicts` |
 | `shared_memory_write` | Suggest-first: `propose_*`, `commit_proposal` (`confirmed: true`); agent handoff: `publish_checkpoint` |
+
+Behavior:
+
+- Roaming memory policy injected at agent start (`enableMemoryPolicy`): search before guessing, propose before commit, never auto-commit durable memories, no vault dump into context. Periodic propose nudge (every `memoryProposeNudgeTurns` turns, default 14) asks the agent to propose 0–3 durable candidates; the turn an owner handoff threshold fires prefers handoff over the nudge.
 
 ## Commands
 

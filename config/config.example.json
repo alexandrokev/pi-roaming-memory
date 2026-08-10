@@ -8,6 +8,12 @@
   "maxSearchTokens": 4000,
   "maxReadBytes": 131072,
   "enableStandingInstructions": true,
+  "enableMemoryPolicy": true,
+  "_comment_enableMemoryPolicy": "inject <roaming-memory-policy> into system prompt at agent start (default true)",
+  "enableMemoryProposeNudge": true,
+  "_comment_enableMemoryProposeNudge": "periodic followUp asking agent to propose_memory candidates; never auto-commits",
+  "memoryProposeNudgeTurns": 14,
+  "_comment_memoryProposeNudgeTurns": "turns between propose nudges, clamped 3..100",
   "handoffMode": "shadow",
   "_comment_handoffMode": "shadow keeps pi-auto-handoff; owner registers /handoff+/lanjut — remove legacy package first",
   "hermesFallback": true
