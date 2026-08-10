@@ -435,7 +435,7 @@ Rules:
 | Trust Class | Origin | Normal search | May guide behavior | May enter system prompt |
 |---|---|---:|---:|---:|
 | `standing` | Locally approved `STANDING.md` hash | N/A | Yes | Yes, bounded |
-| `approved` | Suggest-first committed Durable Memory | Yes | Reference only | No |
+| `approved` | Suggest-first approved Durable Memory | Yes | Reference only | No |
 | `inbox` | Human/mobile Inbox Note | Explicit opt-in | No | No |
 | `imported` | Web clip, migration, external note | Explicit opt-in | No | No |
 | `conflicted` | Graph or Syncthing conflict | Diagnostics only | No | No |
@@ -505,10 +505,9 @@ Actions:
 
 ```text
 propose_memory(candidate)
-commit_proposal(proposal_id)
-create_tombstone(target_id, reason_code)
+propose_tombstone(target_id, reason_code)
 propose_resolution(conflict_ids, accepts, rejects)
-commit_resolution(proposal_id)
+approve_proposal(proposal_id, approved: true)
 ```
 
 Suggest-first flow:
@@ -516,9 +515,9 @@ Suggest-first flow:
 1. `propose_*` validates schema, scope, path fields, size, and sensitive-data policy.
 2. Proposal is stored only in local runtime state with short expiry.
 3. Tool returns exact preview, redactions, warnings, and proposal ID; vault remains unchanged.
-4. `commit_*` requires same proposal and explicit Pi user confirmation.
+4. `approve_proposal` requires same proposal and explicit Pi user approval (`approved: true`).
 5. Headless mode without trusted interactive confirmation fails closed in initial release.
-6. Commit reruns validation and sensitive-data scan before publication.
+6. Approval reruns validation and sensitive-data scan before publication.
 7. Success returns immutable note ID and path.
 
 Checkpoint creation is separate operational capability. It may run automatically after semantic content is generated, but uses same validation, secret scan, atomic publisher, and integrity rules.

@@ -26,7 +26,7 @@ function writeConfig(tmp, extra = {}) {
   return cfgPath;
 }
 
-test("formatMemoryPolicyInjection wraps policy, mentions tools + commit gate", async () => {
+test("formatMemoryPolicyInjection wraps policy, mentions tools + approve gate", async () => {
   const { formatMemoryPolicyInjection, ROAMING_MEMORY_POLICY } =
     await loadPolicy();
   const inj = formatMemoryPolicyInjection();
@@ -36,8 +36,8 @@ test("formatMemoryPolicyInjection wraps policy, mentions tools + commit gate", a
   for (const needle of [
     "shared_memory",
     "propose_memory",
-    "commit_proposal",
-    "confirmed",
+    "approve_proposal",
+    "approved",
   ]) {
     assert.ok(inj.includes(needle), `missing ${needle}`);
   }
@@ -47,17 +47,17 @@ test("ROAMING_MEMORY_POLICY covers READ/WRITE rules", async () => {
   const { ROAMING_MEMORY_POLICY } = await loadPolicy();
   assert.ok(ROAMING_MEMORY_POLICY.includes("action=search"));
   assert.ok(ROAMING_MEMORY_POLICY.includes("untrusted reference data"));
-  assert.ok(ROAMING_MEMORY_POLICY.includes("NEVER call commit_proposal"));
+  assert.ok(ROAMING_MEMORY_POLICY.includes("NEVER call approve_proposal"));
   assert.ok(ROAMING_MEMORY_POLICY.includes("STANDING.md"));
   assert.ok(ROAMING_MEMORY_POLICY.includes("publish_checkpoint"));
 });
 
-test("buildProposeNudgeInstruction proposes only, forbids commit", async () => {
+test("buildProposeNudgeInstruction proposes only, forbids self-approve", async () => {
   const { buildProposeNudgeInstruction } = await loadPolicy();
   const inst = buildProposeNudgeInstruction({ turns: 14 });
   assert.ok(inst.includes("propose_memory"));
   assert.ok(inst.includes("No durable roaming memory candidates."));
-  assert.match(inst, /Do NOT commit/);
+  assert.match(inst, /Do NOT call approve_proposal/);
   assert.match(inst, /Do NOT call publish_checkpoint/);
   assert.ok(inst.includes("14"));
   // default turns when opts omitted

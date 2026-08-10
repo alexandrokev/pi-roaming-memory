@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.5 — 2026-08-10
+
+### UX terminology: approve/save, not Git commit
+
+- `shared_memory_write` official action is now `approve_proposal` with `approved: true` — requires explicit user approval after `propose_*` preview; `approved: false` rejects with `approval_required` and leaves the proposal untouched (no publish, no consumption). Saving a proposal is an approval, never a Git commit.
+- Legacy `commit_proposal` (`confirmed: true`) kept as deprecated alias — still publishes; success responses carry `deprecated: true` and point to `approve_proposal`. Removed in a future release.
+- Policy injection, nudge instruction, tool description/params now say approve/save with `approve_proposal approved: true`; no Git commit language in current instructions.
+- Tests: approve true publishes; approve false → `approval_required` without publish/consume; legacy alias still publishes and reports deprecated.
+
 ## 0.6.4 — 2026-08-10
 
 ### Roaming memory usage policy (suggest-first, no auto-commit)

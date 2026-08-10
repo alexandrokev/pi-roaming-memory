@@ -11,7 +11,7 @@
   "enableMemoryPolicy": true,
   "_comment_enableMemoryPolicy": "inject <roaming-memory-policy> into system prompt at agent start (default true)",
   "enableMemoryProposeNudge": true,
-  "_comment_enableMemoryProposeNudge": "periodic followUp asking agent to propose_memory candidates; never auto-commits",
+  "_comment_enableMemoryProposeNudge": "periodic followUp asking agent to propose_memory candidates; never auto-approves (explicit user approval required)",
   "memoryProposeNudgeTurns": 14,
   "_comment_memoryProposeNudgeTurns": "turns between propose nudges, clamped 3..100",
   "handoffMode": "shadow",

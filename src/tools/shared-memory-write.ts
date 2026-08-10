@@ -26,7 +26,8 @@ function jsonResult(payload: unknown) {
 }
 
 /**
- * Restricted write tool. Suggest-first; commit requires confirmed=true.
+ * Restricted write tool. Suggest-first; approve requires approved=true.
+ * Legacy alias commit_proposal (confirmed=true) kept as deprecated.
  * Never targets STANDING.md.
  */
 export function registerSharedMemoryWriteTool(
@@ -37,7 +38,7 @@ export function registerSharedMemoryWriteTool(
     name: "shared_memory_write",
     label: "Shared Memory Write",
     description:
-      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, commit_proposal, publish_checkpoint. commit_proposal requires confirmed=true after user approval. After propose_*, show preview and wait for explicit user approval before commit_proposal confirmed=true. Never auto-commit durable memories. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
+      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, approve_proposal, publish_checkpoint (commit_proposal kept as deprecated alias). approve_proposal requires approved=true after explicit user approval. After propose_*, show preview and wait for explicit user approval before approve_proposal approved=true. Never auto-approve durable memories. This tool approves/saves memory proposals — it never runs a Git commit. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
     parameters: {
       type: "object",
       properties: {
@@ -57,7 +58,14 @@ export function registerSharedMemoryWriteTool(
         rejects: { type: "array", items: { type: "string" } },
         rationale: { type: "string" },
         proposal_id: { type: "string" },
-        confirmed: { type: "boolean" },
+        approved: {
+          type: "boolean",
+          description: "approve_proposal: must be true after explicit user approval",
+        },
+        confirmed: {
+          type: "boolean",
+          description: "legacy commit_proposal alias: must be true (deprecated)",
+        },
         goal: { type: "string" },
         completed: { type: "array", items: { type: "string" } },
         current_state: { type: "string" },
@@ -93,7 +101,7 @@ export function registerSharedMemoryWriteTool(
           proposal_id: r.proposal.id,
           relPath: r.proposal.relPath,
           preview: r.proposal.preview,
-          note: "Vault unchanged until commit_proposal with confirmed=true after explicit user approval.",
+          note: "Vault unchanged until approve_proposal with approved=true after explicit user approval.",
         });
       }
 
@@ -129,6 +137,31 @@ export function registerSharedMemoryWriteTool(
         });
       }
 
+      if (action === "approve_proposal") {
+        const r = commitProposal(config, String(params.proposal_id || ""), {
+          confirmed: params.approved === true,
+        });
+        if (r.ok) {
+          try {
+            rebuildProjection(memoryRootAbs(config), expand(config.indexFile), {
+              maxReadBytes: config.maxReadBytes,
+            }).db.close();
+          } catch {
+            /* index best-effort */
+          }
+          return jsonResult(r);
+        }
+        if (r.error === "confirmation_required") {
+          return jsonResult({
+            ok: false,
+            error: "approval_required",
+            proposal_id: String(params.proposal_id || ""),
+            note: "approve_proposal requires approved:true after explicit user approval.",
+          });
+        }
+        return jsonResult(r);
+      }
+
       if (action === "commit_proposal") {
         const r = commitProposal(config, String(params.proposal_id || ""), {
           confirmed: params.confirmed === true,
@@ -141,6 +174,11 @@ export function registerSharedMemoryWriteTool(
           } catch {
             /* index best-effort */
           }
+          return jsonResult({
+            ...r,
+            deprecated: true,
+            note: "Use approve_proposal with approved:true; commit_proposal is deprecated.",
+          });
         }
         return jsonResult(r);
       }

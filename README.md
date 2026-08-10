@@ -2,7 +2,7 @@
 
 Pi extension for durable, cross-device memory backed by synchronized Obsidian Markdown.
 
-**Version:** 0.6.4  
+**Version:** 0.6.5
 **Status:** Implemented Phases 1–6 (Mac). Windows peer + independent backup still residual.
 
 ## Install
@@ -42,11 +42,13 @@ Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"`
 | Tool | Role |
 |---|---|
 | `shared_memory` | Read-only: `status`, `list`, `search`, `get`, `conflicts` |
-| `shared_memory_write` | Suggest-first: `propose_*`, `commit_proposal` (`confirmed: true`); agent handoff: `publish_checkpoint` |
+| `shared_memory_write` | Suggest-first: `propose_*`, `approve_proposal` (`approved: true`); legacy alias `commit_proposal` (`confirmed: true`, deprecated); agent handoff: `publish_checkpoint` |
 
 Behavior:
 
-- Roaming memory policy injected at agent start (`enableMemoryPolicy`): search before guessing, propose before commit, never auto-commit durable memories, no vault dump into context. Periodic propose nudge (every `memoryProposeNudgeTurns` turns, default 14) asks the agent to propose 0–3 durable candidates; the turn an owner handoff threshold fires prefers handoff over the nudge.
+- Roaming memory policy injected at agent start (`enableMemoryPolicy`): search before guessing, propose before approve, never auto-approve durable memories, no vault dump into context. Periodic propose nudge (every `memoryProposeNudgeTurns` turns, default 14) asks the agent to propose 0–3 durable candidates; the turn an owner handoff threshold fires prefers handoff over the nudge.
+
+Migration (v0.6.5): `commit_proposal` renamed to `approve_proposal` — proposals are approved/saved, never a Git commit. Legacy `commit_proposal` with `confirmed: true` still works but is deprecated; migrate callers to `approve_proposal` with `approved: true`.
 
 ## Commands
 
