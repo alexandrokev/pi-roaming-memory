@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "vaultRoot": "/path/to/obsidian-vault",
+  "memoryRoot": "AI Memory",
+  "deviceIdFile": "~/.pi/agent/pi-roaming-memory/device.json",
+  "indexFile": "~/.pi/agent/pi-roaming-memory/index.sqlite",
+  "maxSearchResults": 8,
+  "maxSearchTokens": 4000,
+  "maxReadBytes": 131072,
+  "enableStandingInstructions": true,
+  "handoffMode": "shadow",
+  "hermesFallback": true
+}
