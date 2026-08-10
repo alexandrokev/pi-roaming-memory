@@ -8,6 +8,8 @@ import {
 } from "../write-service.js";
 import { rebuildProjection } from "../projection/index.js";
 import { memoryRootAbs } from "../config.js";
+import { createCheckpoint, type CheckpointDraft } from "../checkpoint.js";
+import { getPendingCheckpointCwd } from "../pending-checkpoint.js";
 import path from "node:path";
 import os from "node:os";
 
@@ -35,7 +37,7 @@ export function registerSharedMemoryWriteTool(
     name: "shared_memory_write",
     label: "Shared Memory Write",
     description:
-      "Suggest-first durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, commit_proposal. commit_proposal requires confirmed=true after user approval. Cannot modify STANDING.md.",
+      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, commit_proposal, publish_checkpoint. commit_proposal requires confirmed=true after user approval. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
     parameters: {
       type: "object",
       properties: {
@@ -56,6 +58,14 @@ export function registerSharedMemoryWriteTool(
         rationale: { type: "string" },
         proposal_id: { type: "string" },
         confirmed: { type: "boolean" },
+        goal: { type: "string" },
+        completed: { type: "array", items: { type: "string" } },
+        current_state: { type: "string" },
+        remaining: { type: "array", items: { type: "string" } },
+        blockers: { type: "array", items: { type: "string" } },
+        next_action: { type: "string" },
+        parent_checkpoint_id: { type: "string" },
+        cwd: { type: "string" },
       },
       required: ["action"],
     } as any,
@@ -131,6 +141,49 @@ export function registerSharedMemoryWriteTool(
           } catch {
             /* index best-effort */
           }
+        }
+        return jsonResult(r);
+      }
+
+      if (action === "publish_checkpoint") {
+        const cwd = params.cwd || getPendingCheckpointCwd() || process.cwd();
+        const draft: CheckpointDraft = {
+          goal: String(params.goal ?? ""),
+          completed: Array.isArray(params.completed)
+            ? params.completed.map(String)
+            : [],
+          currentState: String(params.current_state ?? ""),
+          remaining: Array.isArray(params.remaining)
+            ? params.remaining.map(String)
+            : [],
+          blockers: Array.isArray(params.blockers)
+            ? params.blockers.map(String)
+            : [],
+          nextAction: String(params.next_action ?? ""),
+          workstreamId: params.workstream_id ?? undefined,
+          parentCheckpointId: params.parent_checkpoint_id ?? undefined,
+        };
+        const r = createCheckpoint(config, String(cwd), draft, {
+          confirmed: true,
+          autoCommit: true,
+        });
+        if (r.ok) {
+          try {
+            rebuildProjection(memoryRootAbs(config), expand(config.indexFile), {
+              maxReadBytes: config.maxReadBytes,
+            }).db.close();
+          } catch {
+            /* index best-effort */
+          }
+          return jsonResult({
+            ok: true,
+            action,
+            id: r.id,
+            relPath: r.relPath,
+            dirty: r.dirty,
+            branch: r.meta.branch,
+            head_commit: r.meta.head_commit,
+          });
         }
         return jsonResult(r);
       }

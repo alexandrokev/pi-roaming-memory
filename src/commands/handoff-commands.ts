@@ -2,6 +2,12 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { RoamingConfig } from "../config.js";
 import { memoryRootAbs } from "../config.js";
 import { createCheckpoint } from "../checkpoint.js";
+import {
+  parseHandoffDraft,
+  draftHasSubstance,
+  buildHandoffFollowUpInstruction,
+} from "../handoff-instruction.js";
+import { setPendingCheckpointCwd } from "../pending-checkpoint.js";
 import { commitProposal } from "../write-service.js";
 import { scanMemoryRoot, getById } from "../scanner.js";
 import { applyGraphToObjects } from "../graph.js";
@@ -13,31 +19,6 @@ import os from "node:os";
 function expand(p: string): string {
   if (p.startsWith("~/")) return path.join(os.homedir(), p.slice(2));
   return p;
-}
-
-function parseDraft(text: string) {
-  // very light section scrape
-  const grab = (h: string) => {
-    const re = new RegExp(
-      `## ${h}\\s*([\\s\\S]*?)(?=\\n## |$)`,
-      "i",
-    );
-    const m = text.match(re);
-    return m ? m[1].trim() : "";
-  };
-  const lines = (s: string) =>
-    s
-      .split("\n")
-      .map((l) => l.replace(/^- /, "").trim())
-      .filter((l) => l && l !== "(none)");
-  return {
-    goal: grab("Goal") || "Active work checkpoint",
-    completed: lines(grab("Completed")),
-    currentState: grab("Current state") || grab("Current State") || text.slice(0, 500),
-    remaining: lines(grab("Remaining")),
-    blockers: lines(grab("Blockers")),
-    nextAction: grab("Next action") || grab("Next Action") || "Continue work",
-  };
 }
 
 /**
@@ -66,43 +47,70 @@ export function registerHandoffCommands(
   for (const name of names.handoff) {
     pi.registerCommand(name, {
       description:
-        mode === "owner"
-          ? "Write immutable roaming Checkpoint to vault (owner mode)"
-          : "Shadow: write immutable roaming Checkpoint (legacy /handoff still owned by pi-auto-handoff)",
+        "Agent summarizes session and publishes roaming Checkpoint (or pass ## draft sections to publish immediately)",
       handler: async (args, ctx) => {
         await ctx.waitForIdle();
-        const draft = parseDraft(String(args || ""));
-        // Interactive confirm when UI present
-        let confirmed = true;
-        if (ctx.hasUI && ctx.ui?.confirm) {
-          confirmed = await ctx.ui.confirm(
-            "Publish roaming checkpoint?",
-            "Creates a new immutable Checkpoint note in AI Memory (suggest-first already validated).",
+        const raw = String(args || "").trim();
+        const draft = parseHandoffDraft(raw);
+        if (raw && draftHasSubstance(draft)) {
+          // explicit draft — immediate publish path with UI confirm
+          let confirmed = true;
+          if (ctx.hasUI && ctx.ui?.confirm) {
+            confirmed = await ctx.ui.confirm(
+              "Publish roaming checkpoint?",
+              "Creates a new immutable Checkpoint note in AI Memory (suggest-first already validated).",
+            );
+          }
+          if (!confirmed) {
+            if (ctx.hasUI) ctx.ui.notify("Checkpoint cancelled", "info");
+            return;
+          }
+          const created = createCheckpoint(config, ctx.cwd, draft, {
+            confirmed: true,
+            autoCommit: true,
+          });
+          if (!created.ok) {
+            if (ctx.hasUI) ctx.ui.notify(`Checkpoint failed: ${created.error}`, "error");
+            else console.error(created.error);
+            return;
+          }
+          try {
+            rebuildProjection(memoryRootAbs(config), expand(config.indexFile), {
+              maxReadBytes: config.maxReadBytes,
+            }).db.close();
+          } catch {
+            /* ignore */
+          }
+          const msg = `Roaming checkpoint ${created.id} → ${created.relPath}${created.dirty ? " (dirty workspace flagged)" : ""}`;
+          if (ctx.hasUI) ctx.ui.notify(msg, "info");
+          else console.log(msg);
+          return;
+        }
+        // auto agent path: summarize session → publish_checkpoint via tool
+        setPendingCheckpointCwd(ctx.cwd);
+        const tokens = ctx.getContextUsage?.()?.tokens ?? 0;
+        const instruction = buildHandoffFollowUpInstruction({
+          reason: "manual",
+          tokens,
+          cwd: ctx.cwd,
+        });
+        if (typeof pi.sendUserMessage === "function") {
+          pi.sendUserMessage(instruction, {
+            deliverAs: "followUp",
+            triggerTurn: true,
+          });
+        } else if (ctx.hasUI) {
+          ctx.ui.notify(
+            "Handoff follow-up unavailable (sendUserMessage missing) — pass ## draft sections to publish immediately",
+            "warning",
           );
         }
-        if (!confirmed) {
-          if (ctx.hasUI) ctx.ui.notify("Checkpoint cancelled", "info");
-          return;
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            "Handoff diminta — agent ringkas session lalu publish_checkpoint ke vault",
+            "info",
+          );
         }
-        const created = createCheckpoint(config, ctx.cwd, draft, {
-          confirmed: true,
-          autoCommit: true,
-        });
-        if (!created.ok) {
-          if (ctx.hasUI) ctx.ui.notify(`Checkpoint failed: ${created.error}`, "error");
-          else console.error(created.error);
-          return;
-        }
-        try {
-          rebuildProjection(memoryRootAbs(config), expand(config.indexFile), {
-            maxReadBytes: config.maxReadBytes,
-          }).db.close();
-        } catch {
-          /* ignore */
-        }
-        const msg = `Roaming checkpoint ${created.id} → ${created.relPath}${created.dirty ? " (dirty workspace flagged)" : ""}`;
-        if (ctx.hasUI) ctx.ui.notify(msg, "info");
-        else console.log(msg);
       },
     });
   }

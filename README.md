@@ -2,7 +2,7 @@
 
 Pi extension for durable, cross-device memory backed by synchronized Obsidian Markdown.
 
-**Version:** 0.6.0  
+**Version:** 0.6.2  
 **Status:** Implemented Phases 1–6 (Mac). Windows peer + independent backup still residual.
 
 ## Install
@@ -39,7 +39,7 @@ Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"`
 | Tool | Role |
 |---|---|
 | `shared_memory` | Read-only: `status`, `list`, `search`, `get`, `conflicts` |
-| `shared_memory_write` | Suggest-first: `propose_*`, `commit_proposal` (`confirmed: true`) |
+| `shared_memory_write` | Suggest-first: `propose_*`, `commit_proposal` (`confirmed: true`); agent handoff: `publish_checkpoint` |
 
 ## Commands
 
@@ -51,6 +51,8 @@ Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"`
 `/memory-approve-standing` — approve STANDING.md hash on this device  
 `/memory-reindex` — rebuild local FTS  
 `/memory-status` — health summary
+
+`/handoff` (owner): no draft → agent summarizes this session and publishes a roaming Checkpoint via `publish_checkpoint`; pass substantive `## Goal` / `## Completed` draft sections to publish immediately. Context threshold (~150k tokens) and `session_compact` trigger the same handoff follow-up. `/lanjut` starts a new session from the latest checkpoint.
 
 ## Documents
 

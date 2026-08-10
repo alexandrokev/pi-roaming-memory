@@ -19,6 +19,8 @@ import {
 } from "./standing.js";
 import { cleanupStaleTemps } from "./atomic-publisher.js";
 import { ensureDeviceId } from "./identity.js";
+import { buildHandoffFollowUpInstruction } from "./handoff-instruction.js";
+import { setPendingCheckpointCwd } from "./pending-checkpoint.js";
 
 function expand(p: string): string {
   if (p.startsWith("~/")) return path.join(os.homedir(), p.slice(2));
@@ -84,10 +86,39 @@ export default function (pi: ExtensionAPI) {
       if (tokens < THRESHOLD) return;
       if (lastTriggerTokens > 0 && tokens - lastTriggerTokens < REARM) return;
       lastTriggerTokens = tokens;
+      setPendingCheckpointCwd(ctx.cwd);
+      const instruction = buildHandoffFollowUpInstruction({
+        reason: "threshold",
+        tokens,
+        cwd: ctx.cwd,
+      });
+      if (typeof pi.sendUserMessage === "function") {
+        pi.sendUserMessage(instruction, {
+          deliverAs: "followUp",
+          triggerTurn: true,
+        });
+      }
       if (ctx.hasUI) {
         ctx.ui.notify(
-          `Context ~${Math.round(tokens / 1000)}k — run /handoff to publish roaming Checkpoint`,
+          `Context ~${Math.round(tokens / 1000)}k — handoff auto, lalu /lanjut di session baru`,
           "warning",
+        );
+      }
+    });
+    // post-compact refresh: same followUp, never manual reason
+    pi.on("session_compact", async (_event, ctx) => {
+      const usage = ctx.getContextUsage?.();
+      const tokens =
+        usage && Number.isFinite(usage.tokens) ? usage.tokens : 0;
+      setPendingCheckpointCwd(ctx.cwd);
+      if (typeof pi.sendUserMessage === "function") {
+        pi.sendUserMessage(
+          buildHandoffFollowUpInstruction({
+            reason: "post-compact",
+            tokens,
+            cwd: ctx.cwd,
+          }),
+          { deliverAs: "followUp", triggerTurn: true },
         );
       }
     });

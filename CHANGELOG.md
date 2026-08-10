@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.2 — 2026-08-10
+
+### Handoff UX parity (owner)
+
+- `/handoff` with no draft → agent followUp: summarize session, then `publish_checkpoint` to vault (legacy pi-auto-handoff UX, vault stays canonical store)
+- `shared_memory_write` action `publish_checkpoint`: agent-authored checkpoint, auto-committed (`confirmed: true, autoCommit: true`) — intentional because user intent = `/handoff` or system threshold; still no STANDING writes
+- Context threshold (~150k) now triggers same followUp instead of notify-only; `session_compact` refresh followUp (reason `post-compact`)
+- Pending cwd binding so agent need not pass cwd to `publish_checkpoint`
+- `/handoff` with substantive `## draft` sections publishes immediately (unchanged); empty/default-only template falls through to agent path
+- Tests: handoff-instruction parse/substance/instruction, publish_checkpoint tool path via temp git repo
+
 ## 0.6.1 — 2026-08-10
 
 ### Fixes
