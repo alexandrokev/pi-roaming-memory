@@ -14,6 +14,7 @@ import { typedId, ensureDeviceId } from "./identity.js";
 import { ProposalStore, type Proposal } from "./proposal-store.js";
 import type { RoamingConfig } from "./config.js";
 import { memoryRootAbs } from "./config.js";
+import { formatWibTimestamp } from "./timestamp.js";
 import path from "node:path";
 import os from "node:os";
 
@@ -68,6 +69,7 @@ export function proposeMemory(
     schema: "pi-roaming-memory/memory@1",
     id,
     created_at,
+    created_at_wib: formatWibTimestamp(created_at),
     origin_device_id: deviceId,
     kind: input.kind,
     trust: "approved",
@@ -121,6 +123,7 @@ export function proposeTombstone(
     schema: "pi-roaming-memory/tombstone@1",
     id,
     created_at,
+    created_at_wib: formatWibTimestamp(created_at),
     origin_device_id: deviceId,
     target_id: targetId,
     reason_code,
@@ -168,6 +171,7 @@ export function proposeResolution(
     schema: "pi-roaming-memory/resolution@1",
     id,
     created_at,
+    created_at_wib: formatWibTimestamp(created_at),
     origin_device_id: deviceId,
     conflict_ids,
     accepts,
@@ -214,11 +218,18 @@ export function proposeCheckpointNote(
       : new Date().toISOString();
   const id =
     typeof metaIn.id === "string" ? metaIn.id : typedId("chk");
+  let created_at_wib: string;
+  try {
+    created_at_wib = formatWibTimestamp(created_at);
+  } catch {
+    return { ok: false, error: "invalid_created_at" };
+  }
   const meta: Record<string, unknown> = {
     ...metaIn,
     schema: "pi-roaming-memory/checkpoint@1",
     id,
     created_at,
+    created_at_wib,
   };
   const b = normalizeCanonicalBody(body);
   meta.integrity_sha256 = computeIntegritySha256(meta, b);

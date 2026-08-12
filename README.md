@@ -2,8 +2,8 @@
 
 Pi extension for durable, cross-device memory backed by synchronized Obsidian Markdown.
 
-**Version:** 0.6.5
-**Status:** Implemented Phases 1–6 (Mac). Windows peer + independent backup still residual.
+**Version:** 0.6.6
+**Status:** Implemented Phases 1–6 (Mac + Windows smoke). Independent backup still residual.
 
 ## Install
 
@@ -47,6 +47,8 @@ Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"`
 Behavior:
 
 - Roaming memory policy injected at agent start (`enableMemoryPolicy`): search before guessing, propose before approve, never auto-approve durable memories, no vault dump into context. Periodic propose nudge (every `memoryProposeNudgeTurns` turns, default 14) asks the agent to propose 0–3 durable candidates; the turn an owner handoff threshold fires prefers handoff over the nudge.
+
+Migration (v0.6.6): new Canonical Notes retain `created_at` as canonical RFC3339 UTC and add `created_at_wib` (`YYYY-MM-DD HH:mm:ss WIB`) for human display. Existing immutable notes remain unchanged. `created_at_wib` participates in integrity validation because it is canonical metadata, but never controls conflict or continuation precedence.
 
 Migration (v0.6.5): `commit_proposal` renamed to `approve_proposal` — proposals are approved/saved, never a Git commit. Legacy `commit_proposal` with `confirmed: true` still works but is deprecated; migrate callers to `approve_proposal` with `approved: true`.
 

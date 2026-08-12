@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.6 — 2026-08-10
+
+### WIB display timestamp
+
+- New Canonical Notes retain `created_at` as RFC3339 UTC and add `created_at_wib` formatted as `YYYY-MM-DD HH:mm:ss WIB` (`Asia/Jakarta`) for human display.
+- `created_at_wib` is display metadata only: it never selects conflict winners or continuation heads. It remains integrity-covered canonical metadata, so tampering is detected.
+- Existing immutable notes are not rewritten. Readers accept notes with or without `created_at_wib`.
+- Tests: UTC-to-WIB conversion, new-note metadata + integrity, and invalid supplied Checkpoint timestamp rejection.
+
 ## 0.6.5 — 2026-08-10
 
 ### UX terminology: approve/save, not Git commit

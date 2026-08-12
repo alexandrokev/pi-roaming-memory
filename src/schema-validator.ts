@@ -1,3 +1,5 @@
+import { formatWibTimestamp } from "./timestamp.js";
+
 export type TrustClass =
   | "standing"
   | "approved"
@@ -92,7 +94,28 @@ export function validateManagedMeta(
     };
   }
 
-  reqString(meta, "created_at", issues);
+  const createdAt = reqString(meta, "created_at", issues);
+  let expectedCreatedAtWib: string | null = null;
+  if (createdAt) {
+    try {
+      expectedCreatedAtWib = formatWibTimestamp(createdAt);
+    } catch {
+      issues.push({ path: "created_at", message: "invalid timestamp" });
+    }
+  }
+  if (meta.created_at_wib !== undefined) {
+    if (typeof meta.created_at_wib !== "string") {
+      issues.push({ path: "created_at_wib", message: "must be string" });
+    } else if (
+      expectedCreatedAtWib !== null &&
+      meta.created_at_wib !== expectedCreatedAtWib
+    ) {
+      issues.push({
+        path: "created_at_wib",
+        message: "must match created_at in Asia/Jakarta",
+      });
+    }
+  }
   reqString(meta, "origin_device_id", issues);
   if (
     typeof meta.origin_device_id === "string" &&

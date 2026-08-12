@@ -11,6 +11,7 @@ import {
   proposeCheckpointNote,
   commitProposal,
 } from "./write-service.js";
+import { formatWibTimestamp } from "./timestamp.js";
 import os from "node:os";
 import path from "node:path";
 
@@ -94,6 +95,7 @@ export function createCheckpoint(
     schema: "pi-roaming-memory/checkpoint@1",
     id,
     created_at,
+    created_at_wib: formatWibTimestamp(created_at),
     origin_device_id: deviceId,
     project_id,
     workstream_id,

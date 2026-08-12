@@ -1,7 +1,7 @@
 # Pi Roaming Memory — Architecture and Design Specification
 
-Status: **Accepted for phased implementation**  
-Implementation status: **Not started**  
+Status: **Accepted for phased implementation**
+Implementation status: **Phases 1–6 complete; Mac and Windows smoke tested; independent backup pending**
 Last revised: 2026-08-10
 
 ## 1. Decision Summary
@@ -249,11 +249,12 @@ Every managed object includes:
 schema: pi-roaming-memory/<type>@1
 id: <typed UUID>
 created_at: <RFC3339 UTC>
+created_at_wib: <YYYY-MM-DD HH:mm:ss WIB; display-only>
 origin_device_id: <UUIDv4>
 integrity_sha256: <hex>
 ```
 
-`created_at` supports display and diagnostics only. It never settles conflicts or precedence.
+`created_at` is canonical UTC and supports display and diagnostics only. It never settles conflicts or precedence. New Notes additionally include `created_at_wib`, derived from `created_at` in `Asia/Jakarta` for human display; it never settles conflicts or precedence. Existing immutable Notes without `created_at_wib` remain valid and are never rewritten.
 
 `integrity_sha256` covers RFC 8785/JCS canonical metadata excluding `integrity_sha256`, followed by one LF and exact UTF-8 body bytes. Integrity mismatch marks object invalid.
 
@@ -264,6 +265,7 @@ integrity_sha256: <hex>
 schema: pi-roaming-memory/memory@1
 id: mem_550e8400-e29b-41d4-a716-446655440000
 created_at: 2026-08-10T00:00:00Z
+created_at_wib: 2026-08-10 07:00:00 WIB
 origin_device_id: 4cf28a08-8c86-431a-8ad2-10cb27b56b16
 kind: decision
 trust: approved
@@ -309,6 +311,7 @@ Invariants:
 schema: pi-roaming-memory/checkpoint@1
 id: chk_550e8400-e29b-41d4-a716-446655440000
 created_at: 2026-08-10T00:00:00Z
+created_at_wib: 2026-08-10 07:00:00 WIB
 origin_device_id: 4cf28a08-8c86-431a-8ad2-10cb27b56b16
 project_id: prj_<sha256>
 workstream_id: wrk_<uuid>
@@ -363,6 +366,7 @@ Invariants:
 schema: pi-roaming-memory/tombstone@1
 id: tmb_<uuid>
 created_at: <RFC3339 UTC>
+created_at_wib: <YYYY-MM-DD HH:mm:ss WIB; display-only>
 origin_device_id: <UUIDv4>
 target_id: mem_<uuid>
 reason_code: obsolete
@@ -381,6 +385,7 @@ A valid Tombstone excludes exact target from usable retrieval. It does not delet
 schema: pi-roaming-memory/resolution@1
 id: res_<uuid>
 created_at: <RFC3339 UTC>
+created_at_wib: <YYYY-MM-DD HH:mm:ss WIB; display-only>
 origin_device_id: <UUIDv4>
 conflict_ids: [mem_<uuid>, mem_<uuid>]
 accepts: [mem_<uuid>]
