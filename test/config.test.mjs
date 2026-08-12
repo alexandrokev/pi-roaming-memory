@@ -49,4 +49,60 @@ test("loadConfig accepts absolute vaultRoot", async () => {
   assert.equal(ok.ok, true);
   assert.equal(memoryRootAbs(ok.config), path.resolve(vault, "AI Memory"));
   assert.equal(ok.config.handoffMode, "shadow");
+  assert.equal(ok.config.handoffThresholdPercent, 75);
+  assert.equal(ok.config.handoffRearmPercent, 25);
+});
+
+test("loadConfig accepts custom handoff percentages", async () => {
+  const { loadConfig } = await load();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prm-cfg-"));
+  const vault = path.join(tmp, "vault");
+  fs.mkdirSync(vault);
+  const cfgPath = path.join(tmp, "config.json");
+  fs.writeFileSync(
+    cfgPath,
+    JSON.stringify({
+      schemaVersion: 1,
+      vaultRoot: vault,
+      memoryRoot: "AI Memory",
+      handoffThresholdPercent: 80,
+      handoffRearmPercent: 10,
+    }),
+  );
+  const result = loadConfig(cfgPath);
+  assert.equal(result.ok, true);
+  assert.equal(result.config.handoffThresholdPercent, 80);
+  assert.equal(result.config.handoffRearmPercent, 10);
+});
+
+test("loadConfig rejects invalid handoff percentages", async () => {
+  const { loadConfig } = await load();
+  for (const [key, value] of [
+    ["handoffThresholdPercent", -1],
+    ["handoffThresholdPercent", 0],
+    ["handoffThresholdPercent", 101],
+    ["handoffThresholdPercent", "75"],
+    ["handoffThresholdPercent", null],
+    ["handoffRearmPercent", -1],
+    ["handoffRearmPercent", 0],
+    ["handoffRearmPercent", 101],
+    ["handoffRearmPercent", "25"],
+    ["handoffRearmPercent", null],
+  ]) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prm-cfg-"));
+    const vault = path.join(tmp, "vault");
+    fs.mkdirSync(vault);
+    const cfgPath = path.join(tmp, "config.json");
+    fs.writeFileSync(
+      cfgPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        vaultRoot: vault,
+        memoryRoot: "AI Memory",
+        [key]: value,
+      }),
+    );
+    const result = loadConfig(cfgPath);
+    assert.equal(result.ok, false, `${key}=${String(value)}`);
+  }
 });

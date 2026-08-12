@@ -131,6 +131,12 @@ test("buildHandoffFollowUpInstruction mentions tool, action, fields, cwd, /lanju
     assert.ok(inst.includes("/lanjut"), reason);
     assert.ok(inst.includes("/tmp/work"), reason);
     assert.ok(inst.includes("~160k"), reason);
+    const percentInst = buildHandoffFollowUpInstruction({
+      reason,
+      percent: 75,
+      cwd: "/tmp/work",
+    });
+    assert.ok(percentInst.includes("75%"), reason);
   }
 });
 

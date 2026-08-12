@@ -74,6 +74,7 @@ export type HandoffFollowUpReason = "manual" | "threshold" | "post-compact";
  */
 export function buildHandoffFollowUpInstruction(opts: {
   reason: HandoffFollowUpReason;
+  percent?: number | null;
   tokens?: number;
   cwd: string;
 }): string {
@@ -83,10 +84,12 @@ export function buildHandoffFollowUpInstruction(opts: {
       : opts.reason === "post-compact"
         ? "session compaction"
         : "user /handoff";
-  const tokensLine =
-    opts.tokens && Number.isFinite(opts.tokens) && opts.tokens > 0
-      ? `Context tokens at trigger: ~${Math.round(opts.tokens / 1000)}k — keep the summary tight.`
-      : "";
+  const contextLine =
+    typeof opts.percent === "number" && Number.isFinite(opts.percent)
+      ? `Context at trigger: ${Math.round(opts.percent)}% — keep the summary tight.`
+      : opts.tokens && Number.isFinite(opts.tokens) && opts.tokens > 0
+        ? `Context tokens at trigger: ~${Math.round(opts.tokens / 1000)}k — keep the summary tight.`
+        : "";
   return [
     `Session handoff requested (${reasonLabel}). Handle it now:`,
     "",
@@ -102,7 +105,7 @@ export function buildHandoffFollowUpInstruction(opts: {
     "3. Do NOT write vault paths manually. Do NOT use empty template defaults (\"(none)\", \"Continue work\") — only real content from this session. No secrets.",
     "4. cwd is already bound for the tool (" + opts.cwd + ") — you do NOT need to pass cwd.",
     "5. After the tool returns ok, reply briefly: done / remaining / next action, and remind the user to run /lanjut to start a new session from this checkpoint.",
-    tokensLine,
+    contextLine,
   ]
     .filter((l) => l !== "")
     .join("\n");

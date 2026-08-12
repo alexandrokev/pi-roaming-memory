@@ -2,13 +2,13 @@
 
 Pi extension for durable, cross-device memory backed by synchronized Obsidian Markdown.
 
-**Version:** 0.6.6
+**Version:** 0.7.0
 **Status:** Implemented Phases 1–6 (Mac + Windows smoke). Independent backup still residual.
 
 ## Install
 
 ```bash
-pi install git:github.com/alexandrokev/pi-roaming-memory
+pi install git:github.com/alexandrokev/pi-roaming-memory@v0.7.0
 ```
 
 Create local config (required):
@@ -29,6 +29,8 @@ cat > ~/.pi/agent/pi-roaming-memory/config.json <<'EOF'
   "enableMemoryPolicy": true,
   "enableMemoryProposeNudge": true,
   "memoryProposeNudgeTurns": 14,
+  "handoffThresholdPercent": 75,
+  "handoffRearmPercent": 25,
   "handoffMode": "shadow",
   "hermesFallback": true
 }
@@ -63,7 +65,7 @@ Migration (v0.6.5): `commit_proposal` renamed to `approve_proposal` — proposal
 `/memory-reindex` — rebuild local FTS  
 `/memory-status` — health summary
 
-`/handoff` (owner): no draft → agent summarizes this session and publishes a roaming Checkpoint via `publish_checkpoint`; pass substantive `## Goal` / `## Completed` draft sections to publish immediately. Context threshold (~150k tokens) and `session_compact` trigger the same handoff follow-up. `/lanjut` starts a new session from the latest checkpoint.
+`/handoff` (owner): no draft → agent summarizes this session and publishes a roaming Checkpoint via `publish_checkpoint`; pass substantive `## Goal` / `## Completed` draft sections to publish immediately. Owner auto-handoff uses raw `ContextUsage.percent`: default threshold `75`, repeat rearm delta `25` percentage points. `session_compact` triggers the same handoff follow-up. `/lanjut` starts a new session from the latest checkpoint.
 
 ## Documents
 

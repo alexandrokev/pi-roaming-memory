@@ -639,7 +639,7 @@ Verified Pi surfaces:
 
 Rules:
 
-- Guard missing or non-finite context token values. Thresholds are configurable defaults, not invariants.
+- Guard missing or non-finite context percentage values. Thresholds are configurable defaults, not invariants.
 - No note corpus is injected during `session_start`.
 - `before_agent_start` may inject only locally approved, valid, conflict-free bounded `STANDING.md`.
 - `turn_end` may detect threshold and request Checkpoint refresh, but never forces session switch.
@@ -670,14 +670,16 @@ After parity approval:
 
 ### 15.2 Threshold behavior
 
-Initial compatibility defaults:
+Percentage defaults:
 
 ```text
-threshold tokens: 150000
-rearm delta: 25000
+handoff threshold percent: 75
+handoff rearm percent: 25
 ```
 
-If context usage is unavailable, no automatic threshold action occurs. Extension emits bounded diagnostic, not repeated prompts.
+The extension uses raw `ContextUsage.percent` from Pi. It never reconstructs percentage from token counts or model context-window metadata. First trigger occurs at `percent >= handoffThresholdPercent`; repeat trigger requires raw percent growth `>= handoffRearmPercent` since last trigger. Null or non-finite percentages do nothing. Both owner and shadow trackers reset on `session_start` and `session_compact`.
+
+If context usage is unavailable, no automatic threshold action occurs. No repeated prompt or diagnostic is emitted.
 
 Threshold flow:
 
@@ -1050,7 +1052,7 @@ Hermes removal:
 4. Dirty source Checkpoint from another device blocks continuation.
 5. Dirty current workspace blocks continuation.
 6. Multiple Workstream heads require human choice/Resolution.
-7. `ctx.getContextUsage()` missing or non-finite causes no threshold write storm.
+7. `ctx.getContextUsage()` missing or raw `percent` null/non-finite causes no threshold write storm.
 8. `ctx.newSession()` cancellation leaves old session usable.
 9. Replacement callback uses only new context; stale old objects are tested to fail.
 

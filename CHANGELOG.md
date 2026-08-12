@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 2026-08-12
+
+### Percentage-based auto-handoff
+
+- Replace fixed 150k/25k token values with configurable raw `ContextUsage.percent` defaults: threshold `75`, rearm delta `25` percentage points.
+- Owner and shadow modes share threshold/rearm predicate; shadow only logs would-trigger events when `PI_ROAMING_SHADOW_LOG=1`.
+- Null/non-finite percentages do not trigger; trackers reset on `session_start` and `session_compact`.
+- Add config validation, pure threshold helper tests, and percentage-based docs.
+
 ## 0.6.6 — 2026-08-10
 
 ### WIB display timestamp

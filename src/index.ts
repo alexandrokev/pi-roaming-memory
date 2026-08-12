@@ -26,6 +26,10 @@ import {
   shouldNudgePropose,
 } from "./memory-policy.js";
 import { setPendingCheckpointCwd } from "./pending-checkpoint.js";
+import {
+  createHandoffThresholdState,
+  evaluateHandoffThreshold,
+} from "./handoff-threshold.js";
 
 function expand(p: string): string {
   if (p.startsWith("~/")) return path.join(os.homedir(), p.slice(2));
@@ -88,61 +92,70 @@ export default function (pi: ExtensionAPI) {
 
   // Turn-end: owner threshold handoff first (preferred), then periodic
   // propose nudge. Ordered so a handoff trigger turn skips the nudge.
-  let lastTriggerTokens = 0;
-  const THRESHOLD = 150_000;
-  const REARM = 25_000;
+  let thresholdState = createHandoffThresholdState();
   let proposeTurns = 0;
 
+  pi.on("session_start", async () => {
+    thresholdState = createHandoffThresholdState();
+  });
+
   pi.on("turn_end", async (_event, ctx) => {
-    let handoffTriggeredThisTurn = false;
+    let thresholdTriggeredThisTurn = false;
 
     if (config.handoffMode === "owner") {
       const usage = ctx.getContextUsage?.();
-      if (usage && Number.isFinite(usage.tokens)) {
-        const tokens = usage.tokens;
-        if (tokens >= THRESHOLD) {
-          if (lastTriggerTokens === 0 || tokens - lastTriggerTokens >= REARM) {
-            lastTriggerTokens = tokens;
-            handoffTriggeredThisTurn = true;
-            setPendingCheckpointCwd(ctx.cwd);
-            const instruction = buildHandoffFollowUpInstruction({
-              reason: "threshold",
-              tokens,
-              cwd: ctx.cwd,
-            });
-            if (typeof pi.sendUserMessage === "function") {
-              pi.sendUserMessage(instruction, {
-                deliverAs: "followUp",
-                triggerTurn: true,
-              });
-            }
-            if (ctx.hasUI) {
-              ctx.ui.notify(
-                `Context ~${Math.round(tokens / 1000)}k — handoff auto, lalu /lanjut di session baru`,
-                "warning",
-              );
-            }
-          }
+      const decision = evaluateHandoffThreshold(
+        thresholdState,
+        usage?.percent,
+        {
+          thresholdPercent: config.handoffThresholdPercent,
+          rearmPercent: config.handoffRearmPercent,
+        },
+      );
+      thresholdState = decision.state;
+      thresholdTriggeredThisTurn = decision.triggered;
+      if (decision.triggered) {
+        setPendingCheckpointCwd(ctx.cwd);
+        const instruction = buildHandoffFollowUpInstruction({
+          reason: "threshold",
+          percent: usage?.percent,
+          cwd: ctx.cwd,
+        });
+        if (typeof pi.sendUserMessage === "function") {
+          pi.sendUserMessage(instruction, {
+            deliverAs: "followUp",
+            triggerTurn: true,
+          });
+        }
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            `Context ${Math.round(usage?.percent ?? 0)}% — handoff auto, lalu /lanjut di session baru`,
+            "warning",
+          );
         }
       }
     } else if (config.handoffMode === "shadow") {
       // metrics only — do not auto-write, do not steal commands
       const usage = ctx.getContextUsage?.();
-      if (
-        process.env.PI_ROAMING_SHADOW_LOG === "1" &&
-        usage &&
-        Number.isFinite(usage.tokens) &&
-        usage.tokens >= 150_000
-      ) {
+      const decision = evaluateHandoffThreshold(
+        thresholdState,
+        usage?.percent,
+        {
+          thresholdPercent: config.handoffThresholdPercent,
+          rearmPercent: config.handoffRearmPercent,
+        },
+      );
+      thresholdState = decision.state;
+      if (process.env.PI_ROAMING_SHADOW_LOG === "1" && decision.triggered) {
         console.error(
-          `[pi-roaming-memory shadow] tokens=${usage.tokens} (legacy auto-handoff remains owner)`,
+          `[pi-roaming-memory shadow] percent=${usage?.percent} would-trigger (legacy auto-handoff remains owner)`,
         );
       }
     }
 
     proposeTurns++;
-    if (handoffTriggeredThisTurn) {
-      // prefer handoff followUp; reset so nudge does not fire next turn
+    if (thresholdTriggeredThisTurn) {
+      // prefer threshold handling; reset so nudge does not fire next turn
       proposeTurns = 0;
     } else if (
       config.enableMemoryProposeNudge &&
@@ -163,22 +176,20 @@ export default function (pi: ExtensionAPI) {
   });
 
   // post-compact refresh: same followUp, never manual reason (owner only)
-  if (config.handoffMode === "owner") {
-    pi.on("session_compact", async (_event, ctx) => {
-      const usage = ctx.getContextUsage?.();
-      const tokens =
-        usage && Number.isFinite(usage.tokens) ? usage.tokens : 0;
-      setPendingCheckpointCwd(ctx.cwd);
-      if (typeof pi.sendUserMessage === "function") {
-        pi.sendUserMessage(
-          buildHandoffFollowUpInstruction({
-            reason: "post-compact",
-            tokens,
-            cwd: ctx.cwd,
-          }),
-          { deliverAs: "followUp", triggerTurn: true },
-        );
-      }
-    });
-  }
+  pi.on("session_compact", async (_event, ctx) => {
+    thresholdState = createHandoffThresholdState();
+    if (config.handoffMode !== "owner") return;
+    const usage = ctx.getContextUsage?.();
+    setPendingCheckpointCwd(ctx.cwd);
+    if (typeof pi.sendUserMessage === "function") {
+      pi.sendUserMessage(
+        buildHandoffFollowUpInstruction({
+          reason: "post-compact",
+          percent: usage?.percent,
+          cwd: ctx.cwd,
+        }),
+        { deliverAs: "followUp", triggerTurn: true },
+      );
+    }
+  });
 }

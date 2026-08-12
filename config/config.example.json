@@ -14,6 +14,10 @@
   "_comment_enableMemoryProposeNudge": "periodic followUp asking agent to propose_memory candidates; never auto-approves (explicit user approval required)",
   "memoryProposeNudgeTurns": 14,
   "_comment_memoryProposeNudgeTurns": "turns between propose nudges, clamped 3..100",
+  "handoffThresholdPercent": 75,
+  "_comment_handoffThresholdPercent": "owner/shadow auto-handoff threshold, >0..100; default 75",
+  "handoffRearmPercent": 25,
+  "_comment_handoffRearmPercent": "minimum raw ContextUsage.percent growth before repeat trigger, >0..100; default 25",
   "handoffMode": "shadow",
   "_comment_handoffMode": "shadow keeps pi-auto-handoff; owner registers /handoff+/lanjut — remove legacy package first",
   "hermesFallback": true

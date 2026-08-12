@@ -15,6 +15,8 @@ export type RoamingConfig = {
   enableMemoryPolicy: boolean;
   enableMemoryProposeNudge: boolean;
   memoryProposeNudgeTurns: number;
+  handoffThresholdPercent: number;
+  handoffRearmPercent: number;
   handoffMode: "off" | "shadow" | "owner";
   hermesFallback: boolean;
 };
@@ -95,6 +97,41 @@ export function loadConfig(
     return { ok: false, error: "handoffMode invalid" };
   }
 
+  const handoffThresholdPercentValue = Object.prototype.hasOwnProperty.call(
+    o,
+    "handoffThresholdPercent",
+  )
+    ? o.handoffThresholdPercent
+    : 75;
+  const handoffRearmPercentValue = Object.prototype.hasOwnProperty.call(
+    o,
+    "handoffRearmPercent",
+  )
+    ? o.handoffRearmPercent
+    : 25;
+  if (
+    typeof handoffThresholdPercentValue !== "number" ||
+    !Number.isFinite(handoffThresholdPercentValue) ||
+    handoffThresholdPercentValue <= 0 ||
+    handoffThresholdPercentValue > 100
+  ) {
+    return {
+      ok: false,
+      error: "handoffThresholdPercent must be finite, greater than 0, and at most 100",
+    };
+  }
+  if (
+    typeof handoffRearmPercentValue !== "number" ||
+    !Number.isFinite(handoffRearmPercentValue) ||
+    handoffRearmPercentValue <= 0 ||
+    handoffRearmPercentValue > 100
+  ) {
+    return {
+      ok: false,
+      error: "handoffRearmPercent must be finite, greater than 0, and at most 100",
+    };
+  }
+
   const config: RoamingConfig = {
     schemaVersion: 1,
     vaultRoot: path.normalize(o.vaultRoot),
@@ -133,6 +170,8 @@ export function loadConfig(
           : 14,
       ),
     ),
+    handoffThresholdPercent: handoffThresholdPercentValue,
+    handoffRearmPercent: handoffRearmPercentValue,
     handoffMode,
     hermesFallback: o.hermesFallback !== false,
   };
