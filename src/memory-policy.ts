@@ -47,6 +47,14 @@ export function buildProposeNudgeInstruction(opts?: {
   ].join("\n");
 }
 
+/** Footer status key for the compact periodic propose nudge (status mode). */
+export const PROPOSE_NUDGE_STATUS_KEY = "roaming-memory-propose";
+
+/** One-line footer/status text for the compact periodic propose nudge. */
+export function buildProposeNudgeStatusText(): string {
+  return "Roaming memory review due — ask agent when ready";
+}
+
 /** Simple turn-count trigger. */
 export function shouldNudgePropose(
   turnsSince: number,

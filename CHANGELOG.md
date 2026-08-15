@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Compact propose nudge (status mode)
+
+- New config key `memoryProposeNudgeMode`: `status` (default) shows a one-line footer notice (key `roaming-memory-propose`) when the periodic propose review is due — no synthetic transcript message, no forced agent turn. `followUp` restores the legacy multi-line review follow-up for automatic review at the cost of transcript clutter.
+- Stale propose status cleared on session start, before the next agent run, and on compaction; propose turn counter resets on session start and compaction. Handoff (owner threshold or post-compact) still takes priority over the nudge.
+- Tests: `memoryProposeNudgeMode` config default/validation, one-line status text helper, existing suite green.
+
 ## 0.7.0 — 2026-08-12
 
 ### Percentage-based auto-handoff

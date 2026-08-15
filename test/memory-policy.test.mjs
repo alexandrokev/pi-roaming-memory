@@ -65,6 +65,15 @@ test("buildProposeNudgeInstruction proposes only, forbids self-approve", async (
   assert.ok(buildProposeNudgeInstruction().includes("14"));
 });
 
+test("buildProposeNudgeStatusText is one line and status key stable", async () => {
+  const { buildProposeNudgeStatusText, PROPOSE_NUDGE_STATUS_KEY } =
+    await loadPolicy();
+  assert.equal(PROPOSE_NUDGE_STATUS_KEY, "roaming-memory-propose");
+  const text = buildProposeNudgeStatusText();
+  assert.ok(text.length > 0);
+  assert.ok(!text.includes("\n"), "status text must be a single line");
+});
+
 test("shouldNudgePropose boundaries", async () => {
   const { shouldNudgePropose } = await loadPolicy();
   assert.equal(shouldNudgePropose(0, 14), false);

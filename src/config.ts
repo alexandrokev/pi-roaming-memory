@@ -15,6 +15,7 @@ export type RoamingConfig = {
   enableMemoryPolicy: boolean;
   enableMemoryProposeNudge: boolean;
   memoryProposeNudgeTurns: number;
+  memoryProposeNudgeMode: "status" | "followUp";
   handoffThresholdPercent: number;
   handoffRearmPercent: number;
   handoffMode: "off" | "shadow" | "owner";
@@ -97,6 +98,24 @@ export function loadConfig(
     return { ok: false, error: "handoffMode invalid" };
   }
 
+  // Default only when the key is absent; explicit null is invalid.
+  const memoryProposeNudgeMode = Object.prototype.hasOwnProperty.call(
+    o,
+    "memoryProposeNudgeMode",
+  )
+    ? o.memoryProposeNudgeMode
+    : "status";
+  if (
+    typeof memoryProposeNudgeMode !== "string" ||
+    (memoryProposeNudgeMode !== "status" &&
+      memoryProposeNudgeMode !== "followUp")
+  ) {
+    return {
+      ok: false,
+      error: 'memoryProposeNudgeMode must be "status" or "followUp"',
+    };
+  }
+
   const handoffThresholdPercentValue = Object.prototype.hasOwnProperty.call(
     o,
     "handoffThresholdPercent",
@@ -170,6 +189,7 @@ export function loadConfig(
           : 14,
       ),
     ),
+    memoryProposeNudgeMode,
     handoffThresholdPercent: handoffThresholdPercentValue,
     handoffRearmPercent: handoffRearmPercentValue,
     handoffMode,

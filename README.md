@@ -29,6 +29,7 @@ cat > ~/.pi/agent/pi-roaming-memory/config.json <<'EOF'
   "enableMemoryPolicy": true,
   "enableMemoryProposeNudge": true,
   "memoryProposeNudgeTurns": 14,
+  "memoryProposeNudgeMode": "status",
   "handoffThresholdPercent": 75,
   "handoffRearmPercent": 25,
   "handoffMode": "shadow",
@@ -48,7 +49,7 @@ Set `vaultRoot` to your Obsidian vault absolute path. Use `handoffMode: "owner"`
 
 Behavior:
 
-- Roaming memory policy injected at agent start (`enableMemoryPolicy`): search before guessing, propose before approve, never auto-approve durable memories, no vault dump into context. Periodic propose nudge (every `memoryProposeNudgeTurns` turns, default 14) asks the agent to propose 0–3 durable candidates; the turn an owner handoff threshold fires prefers handoff over the nudge.
+- Roaming memory policy injected at agent start (`enableMemoryPolicy`): search before guessing, propose before approve, never auto-approve durable memories, no vault dump into context. Periodic propose nudge (every `memoryProposeNudgeTurns` turns, default 14) reminds the agent to propose 0–3 durable candidates; the turn an owner handoff threshold fires prefers handoff over the nudge. Nudge delivery is controlled by `memoryProposeNudgeMode`: default `status` shows a compact one-line footer notice (`roaming-memory-propose`) with no transcript message and no forced agent turn; `followUp` restores the legacy multi-line synthetic review message (auto-review convenience at the cost of transcript clutter).
 
 Migration (v0.6.6): new Canonical Notes retain `created_at` as canonical RFC3339 UTC and add `created_at_wib` (`YYYY-MM-DD HH:mm:ss WIB`) for human display. Existing immutable notes remain unchanged. `created_at_wib` participates in integrity validation because it is canonical metadata, but never controls conflict or continuation precedence.
 

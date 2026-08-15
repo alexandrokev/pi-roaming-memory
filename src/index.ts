@@ -5,7 +5,7 @@
  * handoffMode: off | shadow (default) | owner
  * Does not write STANDING.md. Durable writes are suggest-first.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -21,7 +21,9 @@ import { cleanupStaleTemps } from "./atomic-publisher.js";
 import { ensureDeviceId } from "./identity.js";
 import { buildHandoffFollowUpInstruction } from "./handoff-instruction.js";
 import {
+  PROPOSE_NUDGE_STATUS_KEY,
   buildProposeNudgeInstruction,
+  buildProposeNudgeStatusText,
   formatMemoryPolicyInjection,
   shouldNudgePropose,
 } from "./memory-policy.js";
@@ -73,7 +75,9 @@ export default function (pi: ExtensionAPI) {
     path.dirname(expand(config.deviceIdFile)),
     "standing-approval.json",
   );
-  pi.on("before_agent_start", async (event, _ctx) => {
+  pi.on("before_agent_start", async (event, ctx) => {
+    // stale propose status should not linger once a new agent run starts
+    clearProposeStatus(ctx);
     const chunks: string[] = [];
     if (typeof event?.systemPrompt === "string" && event.systemPrompt.length)
       chunks.push(event.systemPrompt);
@@ -95,8 +99,22 @@ export default function (pi: ExtensionAPI) {
   let thresholdState = createHandoffThresholdState();
   let proposeTurns = 0;
 
-  pi.on("session_start", async () => {
+  function clearProposeStatus(ctx: ExtensionContext): void {
+    if (typeof ctx.ui?.setStatus === "function") {
+      ctx.ui.setStatus(PROPOSE_NUDGE_STATUS_KEY, undefined);
+    }
+  }
+
+  function setProposeStatus(ctx: ExtensionContext): void {
+    if (typeof ctx.ui?.setStatus === "function") {
+      ctx.ui.setStatus(PROPOSE_NUDGE_STATUS_KEY, buildProposeNudgeStatusText());
+    }
+  }
+
+  pi.on("session_start", async (_event, ctx) => {
     thresholdState = createHandoffThresholdState();
+    proposeTurns = 0;
+    clearProposeStatus(ctx);
   });
 
   pi.on("turn_end", async (_event, ctx) => {
@@ -159,18 +177,26 @@ export default function (pi: ExtensionAPI) {
       proposeTurns = 0;
     } else if (
       config.enableMemoryProposeNudge &&
-      shouldNudgePropose(proposeTurns, config.memoryProposeNudgeTurns) &&
-      typeof pi.sendUserMessage === "function"
+      shouldNudgePropose(proposeTurns, config.memoryProposeNudgeTurns)
     ) {
       proposeTurns = 0;
-      pi.sendUserMessage(
-        buildProposeNudgeInstruction({
-          turns: config.memoryProposeNudgeTurns,
-        }),
-        { deliverAs: "followUp", triggerTurn: true },
-      );
-      if (ctx.hasUI) {
-        ctx.ui.notify("Roaming memory: review durable candidates?", "info");
+      if (config.memoryProposeNudgeMode === "followUp") {
+        // legacy explicit opt-in: synthetic multi-line review follow-up
+        if (typeof pi.sendUserMessage === "function") {
+          pi.sendUserMessage(
+            buildProposeNudgeInstruction({
+              turns: config.memoryProposeNudgeTurns,
+            }),
+            { deliverAs: "followUp", triggerTurn: true },
+          );
+          if (ctx.hasUI) {
+            ctx.ui.notify("Roaming memory: review durable candidates?", "info");
+          }
+        }
+      } else {
+        // status mode (default): compact one-line footer notice only —
+        // no transcript message, no forced agent turn.
+        setProposeStatus(ctx);
       }
     }
   });
@@ -178,6 +204,8 @@ export default function (pi: ExtensionAPI) {
   // post-compact refresh: same followUp, never manual reason (owner only)
   pi.on("session_compact", async (_event, ctx) => {
     thresholdState = createHandoffThresholdState();
+    proposeTurns = 0;
+    clearProposeStatus(ctx);
     if (config.handoffMode !== "owner") return;
     const usage = ctx.getContextUsage?.();
     setPendingCheckpointCwd(ctx.cwd);

@@ -106,3 +106,65 @@ test("loadConfig rejects invalid handoff percentages", async () => {
     assert.equal(result.ok, false, `${key}=${String(value)}`);
   }
 });
+
+test("loadConfig defaults memoryProposeNudgeMode to status", async () => {
+  const { loadConfig } = await load();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prm-cfg-"));
+  const vault = path.join(tmp, "vault");
+  fs.mkdirSync(vault);
+  const cfgPath = path.join(tmp, "config.json");
+  fs.writeFileSync(
+    cfgPath,
+    JSON.stringify({
+      schemaVersion: 1,
+      vaultRoot: vault,
+      memoryRoot: "AI Memory",
+    }),
+  );
+  const result = loadConfig(cfgPath);
+  assert.equal(result.ok, true);
+  assert.equal(result.config.memoryProposeNudgeMode, "status");
+});
+
+test("loadConfig accepts status and followUp nudge modes", async () => {
+  const { loadConfig } = await load();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prm-cfg-"));
+  const vault = path.join(tmp, "vault");
+  fs.mkdirSync(vault);
+  for (const mode of ["status", "followUp"]) {
+    const cfgPath = path.join(tmp, `config-${mode}.json`);
+    fs.writeFileSync(
+      cfgPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        vaultRoot: vault,
+        memoryRoot: "AI Memory",
+        memoryProposeNudgeMode: mode,
+      }),
+    );
+    const result = loadConfig(cfgPath);
+    assert.equal(result.ok, true);
+    assert.equal(result.config.memoryProposeNudgeMode, mode);
+  }
+});
+
+test("loadConfig rejects invalid memoryProposeNudgeMode", async () => {
+  const { loadConfig } = await load();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "prm-cfg-"));
+  const vault = path.join(tmp, "vault");
+  fs.mkdirSync(vault);
+  for (const value of ["toast", "notify", "", 1, [], null]) {
+    const cfgPath = path.join(tmp, `config-bad-${String(value)}.json`);
+    fs.writeFileSync(
+      cfgPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        vaultRoot: vault,
+        memoryRoot: "AI Memory",
+        memoryProposeNudgeMode: value,
+      }),
+    );
+    const result = loadConfig(cfgPath);
+    assert.equal(result.ok, false, `mode=${String(value)}`);
+  }
+});
