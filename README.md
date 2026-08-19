@@ -53,6 +53,8 @@ Behavior:
 
 Migration (v0.6.6): new Canonical Notes retain `created_at` as canonical RFC3339 UTC and add `created_at_wib` (`YYYY-MM-DD HH:mm:ss WIB`) for human display. Existing immutable notes remain unchanged. `created_at_wib` participates in integrity validation because it is canonical metadata, but never controls conflict or continuation precedence.
 
+Layout (v0.7.x): canonical storage folders are partitioned by WIB calendar day — `memories/YYYY/MM/DD/`, `handoffs/YYYY/MM/DD/`, `tombstones/YYYY/MM/DD/`, `resolutions/YYYY/MM/DD/`. Folder placement is display/sort only and never affects conflict/continuation precedence. Re-layout an existing vault with `node scripts/migrate-to-daily.mjs <memoryRoot>`.
+
 Migration (v0.6.5): `commit_proposal` renamed to `approve_proposal` — proposals are approved/saved, never a Git commit. Legacy `commit_proposal` with `confirmed: true` still works but is deprecated; migrate callers to `approve_proposal` with `approved: true`.
 
 ## Commands

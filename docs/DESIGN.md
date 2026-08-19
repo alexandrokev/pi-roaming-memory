@@ -121,7 +121,7 @@ Raw sessions remain historical evidence, not canonical Durable Memory. Local ind
 
 ## 6. Storage Layout
 
-Canonical synchronized layout:
+Canonical synchronized layout (partitioned by Western Indonesian Time calendar day):
 
 ```text
 AI Memory/
@@ -130,19 +130,23 @@ AI Memory/
 ├── memories/
 │   └── YYYY/
 │       └── MM/
-│           └── <memory-id>.md
+│           └── DD/
+│               └── <memory-id>.md
 ├── handoffs/
 │   └── YYYY/
 │       └── MM/
-│           └── <checkpoint-id>.md
+│           └── DD/
+│               └── <checkpoint-id>.md
 ├── tombstones/
 │   └── YYYY/
 │       └── MM/
-│           └── <tombstone-id>.md
+│           └── DD/
+│               └── <tombstone-id>.md
 ├── resolutions/
 │   └── YYYY/
 │       └── MM/
-│           └── <resolution-id>.md
+│           └── DD/
+│               └── <resolution-id>.md
 └── inbox/
     └── <human-authored Markdown>
 ```

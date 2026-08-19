@@ -1,35 +1,50 @@
 import path from "node:path";
 import { normalizeCanonicalBody } from "./integrity.js";
 
-/** YYYY/MM from RFC3339 or Date. */
-export function yearMonth(isoOrDate: string | Date = new Date()): {
+const WIB_TIME_ZONE = "Asia/Jakarta";
+
+/**
+ * Partition key for canonical storage folders, rendered in Western Indonesian
+ * Time (Asia/Jakarta) so folder grouping matches the local calendar day.
+ * Files keep canonical UTC `created_at`; folder placement is display/sort
+ * metadata only and never affects conflict or continuation precedence.
+ */
+export function storagePartition(isoOrDate: string | Date = new Date()): {
   yyyy: string;
   mm: string;
+  dd: string;
 } {
   const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
-  const yyyy = String(d.getUTCFullYear());
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return { yyyy, mm };
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: WIB_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const values = Object.fromEntries(
+    parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value]),
+  );
+  return { yyyy: values.year, mm: values.month, dd: values.day };
 }
 
 export function memoryRelPath(id: string, createdAt: string): string {
-  const { yyyy, mm } = yearMonth(createdAt);
-  return path.posix.join("memories", yyyy, mm, `${id}.md`);
+  const { yyyy, mm, dd } = storagePartition(createdAt);
+  return path.posix.join("memories", yyyy, mm, dd, `${id}.md`);
 }
 
 export function checkpointRelPath(id: string, createdAt: string): string {
-  const { yyyy, mm } = yearMonth(createdAt);
-  return path.posix.join("handoffs", yyyy, mm, `${id}.md`);
+  const { yyyy, mm, dd } = storagePartition(createdAt);
+  return path.posix.join("handoffs", yyyy, mm, dd, `${id}.md`);
 }
 
 export function tombstoneRelPath(id: string, createdAt: string): string {
-  const { yyyy, mm } = yearMonth(createdAt);
-  return path.posix.join("tombstones", yyyy, mm, `${id}.md`);
+  const { yyyy, mm, dd } = storagePartition(createdAt);
+  return path.posix.join("tombstones", yyyy, mm, dd, `${id}.md`);
 }
 
 export function resolutionRelPath(id: string, createdAt: string): string {
-  const { yyyy, mm } = yearMonth(createdAt);
-  return path.posix.join("resolutions", yyyy, mm, `${id}.md`);
+  const { yyyy, mm, dd } = storagePartition(createdAt);
+  return path.posix.join("resolutions", yyyy, mm, dd, `${id}.md`);
 }
 
 export function serializeNote(

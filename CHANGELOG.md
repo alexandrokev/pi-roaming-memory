@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Daily folder grouping (YYYY/MM/DD, WIB)
+
+- Canonical storage folders now split by calendar day: `memories/YYYY/MM/DD/`, `handoffs/YYYY/MM/DD/`, `tombstones/YYYY/MM/DD/`, `resolutions/YYYY/MM/DD/`.
+- Partitioning uses Western Indonesian Time (`Asia/Jakarta`) so folder grouping matches the local calendar day (`handoffs/2026/08/19/` for anything created on 19 August WIB). UTC late-evening notes roll into the next WIB day folder.
+- Folder placement is display/sort metadata only — canonical keys (`created_at`, `id`, `created_at_wib`, `integrity_sha256`) and conflict/continuation precedence are unchanged. Movement never rewrites file bytes.
+- Added `scripts/migrate-to-daily.mjs` to re-layout an existing vault from `YYYY/MM` to `YYYY/MM/DD` (reads `created_at_wib`, falls back to `created_at` → `Asia/Jakarta`, move-only, idempotent, prunes emptied month dirs).
+- Tests: `storagePartition` WIB day boundaries (incl. UTC→next-day rollover), `*RelPath` include `/DD/`, atomic-publisher fixture uses dynamic partition.
+
 ### Compact propose nudge (status mode)
 
 - New config key `memoryProposeNudgeMode`: `status` (default) shows a one-line footer notice (key `roaming-memory-propose`) when the periodic propose review is due — no synthetic transcript message, no forced agent turn. `followUp` restores the legacy multi-line review follow-up for automatic review at the cost of transcript clutter.
