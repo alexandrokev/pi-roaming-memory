@@ -5,6 +5,8 @@ import {
   proposeTombstone,
   proposeResolution,
   commitProposal,
+  saveInboxNote,
+  getProposalStore,
 } from "../write-service.js";
 import { rebuildProjection } from "../projection/index.js";
 import { memoryRootAbs } from "../config.js";
@@ -38,7 +40,7 @@ export function registerSharedMemoryWriteTool(
     name: "shared_memory_write",
     label: "Shared Memory Write",
     description:
-      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, approve_proposal, publish_checkpoint (commit_proposal kept as deprecated alias). approve_proposal requires approved=true after explicit user approval. After propose_*, show preview and wait for explicit user approval before approve_proposal approved=true. Never auto-approve durable memories. This tool approves/saves memory proposals — it never runs a Git commit. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
+      "Durable writes to the roaming Markdown vault. Actions: propose_memory, propose_tombstone, propose_resolution, list_proposals, reject_proposal, batch_approve, save_inbox, approve_proposal, publish_checkpoint (commit_proposal kept as deprecated alias). approve_proposal and batch_approve require approved=true after explicit user approval. After propose_*, show preview and wait for explicit user approval before approve_proposal approved=true. Never auto-approve durable memories. list_proposals/reject_proposal manage pending proposals; save_inbox stages an auto-draft under inbox/ (trust: inbox, not retrieval-eligible). This tool approves/saves memory proposals — it never runs a Git commit. publish_checkpoint is for session handoff after user /handoff or system threshold — agent-authored, auto-committed (user intent = /handoff/threshold), no suggest-first confirm. Still never writes STANDING.md.",
     parameters: {
       type: "object",
       properties: {
@@ -58,6 +60,11 @@ export function registerSharedMemoryWriteTool(
         rejects: { type: "array", items: { type: "string" } },
         rationale: { type: "string" },
         proposal_id: { type: "string" },
+        proposal_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "batch_approve: proposal ids to approve at once",
+        },
         approved: {
           type: "boolean",
           description: "approve_proposal: must be true after explicit user approval",
@@ -181,6 +188,100 @@ export function registerSharedMemoryWriteTool(
           });
         }
         return jsonResult(r);
+      }
+
+      if (action === "list_proposals") {
+        const store = getProposalStore(config);
+        const proposals = store.list().map((p) => ({
+          id: p.id,
+          kind: p.kind,
+          title:
+            typeof p.meta.title === "string" ? p.meta.title : p.relPath,
+          createdAt: p.createdAt,
+          expiresAt: p.expiresAt,
+          relPath: p.relPath,
+          preview: p.preview,
+        }));
+        return jsonResult({
+          ok: true,
+          action,
+          count: proposals.length,
+          proposals,
+          note: "Pending proposals only. Approve with approve_proposal or batch_approve after explicit user approval.",
+        });
+      }
+
+      if (action === "reject_proposal") {
+        const proposalId = String(params.proposal_id || "");
+        const store = getProposalStore(config);
+        const existed = store.get(proposalId) !== null;
+        store.reject(proposalId);
+        return jsonResult({
+          ok: true,
+          action,
+          proposal_id: proposalId,
+          status: existed ? "rejected" : "not_found",
+        });
+      }
+
+      if (action === "batch_approve") {
+        if (params.approved !== true) {
+          return jsonResult({
+            ok: false,
+            error: "approval_required",
+            note: "batch_approve requires approved:true after explicit user approval of every listed proposal.",
+          });
+        }
+        const proposalIds: string[] = Array.isArray(params.proposal_ids)
+          ? params.proposal_ids.map(String)
+          : [];
+        if (!proposalIds.length) {
+          return jsonResult({ ok: false, error: "missing_proposal_ids" });
+        }
+        const results = proposalIds.map((proposal_id) => {
+          const r = commitProposal(config, proposal_id, { confirmed: true });
+          return r.ok
+            ? {
+                proposal_id,
+                ok: true as const,
+                note_id: r.id,
+                relPath: r.relPath,
+              }
+            : { proposal_id, ok: false as const, error: r.error };
+        });
+        if (results.some((r) => r.ok)) {
+          try {
+            rebuildProjection(memoryRootAbs(config), expand(config.indexFile), {
+              maxReadBytes: config.maxReadBytes,
+            }).db.close();
+          } catch {
+            /* index best-effort */
+          }
+        }
+        return jsonResult({
+          ok: true,
+          action,
+          approved: results.filter((r) => r.ok).length,
+          failed: results.filter((r) => !r.ok).length,
+          results,
+        });
+      }
+
+      if (action === "save_inbox") {
+        const r = saveInboxNote(config, {
+          title: String(params.title || ""),
+          body: String(params.body || ""),
+          kind: params.kind ? String(params.kind) : "draft",
+          tags: Array.isArray(params.tags) ? params.tags.map(String) : [],
+        });
+        if (!r.ok) return jsonResult(r);
+        return jsonResult({
+          ok: true,
+          action,
+          id: r.id,
+          relPath: r.relPath,
+          note: "Staged under inbox/ with trust=inbox; not retrieval-eligible until proposed and approved as durable memory.",
+        });
       }
 
       if (action === "publish_checkpoint") {

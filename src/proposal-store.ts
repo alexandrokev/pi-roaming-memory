@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { newUuid } from "./identity.js";
 
+const PROPOSAL_ID_RE =
+  /^prop_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type ProposalKind = "memory" | "resolution" | "tombstone" | "checkpoint";
 
 export type Proposal = {
@@ -24,6 +27,9 @@ export class ProposalStore {
   }
 
   private file(id: string) {
+    if (!PROPOSAL_ID_RE.test(id)) {
+      throw new Error(`invalid_proposal_id:${id}`);
+    }
     return path.join(this.dir, `${id}.json`);
   }
 
@@ -34,7 +40,7 @@ export class ProposalStore {
   ): Proposal {
     const id = `prop_${newUuid()}`;
     const createdAt = new Date().toISOString();
-    const ttl = input.ttlMs ?? 30 * 60 * 1000;
+    const ttl = input.ttlMs ?? 30 * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + ttl).toISOString();
     const proposal: Proposal = {
       id,
@@ -54,21 +60,46 @@ export class ProposalStore {
   }
 
   get(id: string): Proposal | null {
+    if (!PROPOSAL_ID_RE.test(id)) return null;
     const f = this.file(id);
     if (!fs.existsSync(f)) return null;
     try {
       const p = JSON.parse(fs.readFileSync(f, "utf8")) as Proposal;
-      if (Date.parse(p.expiresAt) < Date.now()) {
-        this.delete(id);
-        return null;
-      }
+      // Expired proposals stay readable so a later /memory-pending review can
+      // still approve or reject them; only explicit consumers remove files.
       return p;
     } catch {
       return null;
     }
   }
 
+  /** Newest-first pending proposals (consumed markers are not .json). */
+  list(): Proposal[] {
+    let files: string[];
+    try {
+      files = fs.readdirSync(this.dir);
+    } catch {
+      return [];
+    }
+    const out: Proposal[] = [];
+    for (const f of files) {
+      if (!f.endsWith(".json")) continue;
+      const p = this.get(f.slice(0, -".json".length));
+      if (p) out.push(p);
+    }
+    return out.sort((a, b) => {
+      const diff = Date.parse(b.createdAt) - Date.parse(a.createdAt);
+      return diff !== 0 ? diff : b.id.localeCompare(a.id);
+    });
+  }
+
+  /** Explicit user rejection: drop the proposal without publishing it. */
+  reject(id: string): void {
+    this.delete(id);
+  }
+
   delete(id: string): void {
+    if (!PROPOSAL_ID_RE.test(id)) return;
     try {
       fs.unlinkSync(this.file(id));
     } catch {
@@ -78,6 +109,7 @@ export class ProposalStore {
 
   /** Mark consumed so double-commit fails. */
   consume(id: string): Proposal | null {
+    if (!PROPOSAL_ID_RE.test(id)) return null;
     const p = this.get(id);
     if (!p) return null;
     this.delete(id);
@@ -92,6 +124,7 @@ export class ProposalStore {
   }
 
   wasConsumed(id: string): boolean {
+    if (!PROPOSAL_ID_RE.test(id)) return false;
     return fs.existsSync(path.join(this.dir, `${id}.consumed`));
   }
 }

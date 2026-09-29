@@ -9,6 +9,7 @@ import {
   tombstoneRelPath,
   resolutionRelPath,
   serializeNote,
+  storagePartition,
 } from "./paths.js";
 import { typedId, ensureDeviceId } from "./identity.js";
 import { ProposalStore, type Proposal } from "./proposal-store.js";
@@ -320,4 +321,72 @@ export function commitProposal(
   }
   const id = typeof proposal.meta.id === "string" ? proposal.meta.id : "unknown";
   return { ok: true, id, relPath: pub.relPath };
+}
+
+function inboxSlug(text: string): string {
+  const s = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50)
+    .replace(/-+$/g, "");
+  return s || "draft";
+}
+
+/**
+ * Staging write: auto-drafted candidate knowledge under inbox/. Inbox notes
+ * carry trust "inbox" and are never retrieval-eligible, so an unapproved
+ * draft cannot pollute normal memory search. Promotion to Durable Memory
+ * still goes through propose_memory + explicit approval.
+ */
+export function saveInboxNote(
+  config: RoamingConfig,
+  input: { title: string; body: string; kind?: string; tags?: string[] },
+):
+  | { ok: true; id: string; relPath: string }
+  | { ok: false; error: string; hits?: unknown } {
+  const id = typedId("inbox");
+  const created_at = new Date().toISOString();
+  const { yyyy, mm, dd } = storagePartition(created_at);
+  const relPath = path.posix.join(
+    "inbox",
+    yyyy,
+    mm,
+    dd,
+    `${inboxSlug(input.title)}-${id.slice(-8)}.md`,
+  );
+  const lines = [
+    "---",
+    "schema: pi-roaming-memory/inbox@1",
+    `id: ${id}`,
+    `created_at: ${JSON.stringify(created_at)}`,
+    `created_at_wib: ${JSON.stringify(formatWibTimestamp(created_at))}`,
+    "trust: inbox",
+    `kind: ${JSON.stringify(input.kind || "draft")}`,
+    `title: ${JSON.stringify(input.title)}`,
+    `tags: [${(input.tags ?? []).map((t) => JSON.stringify(t)).join(", ")}]`,
+    "---",
+    "",
+    input.body.trim(),
+    "",
+  ];
+  // Scan the whole rendered note: tags and kind reach the vault too, so a
+  // secret hidden there must be blocked before publishCanonical.
+  const fullText = lines.join("\n");
+  try {
+    assertNoSensitive(fullText);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+      hits: scanSensitive(fullText),
+    };
+  }
+  const pub = publishCanonical({
+    memoryRootAbs: memoryRootAbs(config),
+    relPath,
+    bytes: fullText,
+  });
+  if (!pub.ok) return { ok: false, error: `${pub.code}:${pub.message}` };
+  return { ok: true, id, relPath };
 }

@@ -13,6 +13,7 @@ import { loadConfig, memoryRootAbs } from "./config.js";
 import { registerSharedMemoryTool } from "./tools/shared-memory.js";
 import { registerSharedMemoryWriteTool } from "./tools/shared-memory-write.js";
 import { registerHandoffCommands } from "./commands/handoff-commands.js";
+import { registerMemoryCommands } from "./commands/memory-commands.js";
 import {
   evaluateStanding,
   formatStandingInjection,
@@ -68,6 +69,7 @@ export default function (pi: ExtensionAPI) {
   registerSharedMemoryTool(pi, config);
   registerSharedMemoryWriteTool(pi, config);
   registerHandoffCommands(pi, config);
+  registerMemoryCommands(pi, config);
 
   // System prompt injection (Hermes append pattern): existing prompt first,
   // then memory policy, then approved standing. Appends — never replaces.

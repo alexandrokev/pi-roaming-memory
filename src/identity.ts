@@ -10,7 +10,10 @@ export function newUuid(): string {
   return crypto.randomUUID();
 }
 
-export function typedId(prefix: "mem" | "chk" | "tmb" | "res", uuid = newUuid()): string {
+export function typedId(
+  prefix: "mem" | "chk" | "tmb" | "res" | "inbox",
+  uuid = newUuid(),
+): string {
   return `${prefix}_${uuid}`;
 }
 
